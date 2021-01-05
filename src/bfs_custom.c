@@ -78,7 +78,35 @@ void run_bfs(int64_t root, int64_t* pred) {
 	pred_glob=pred;
 	//user code to do bfs
 
-	
+	int64_t i;
+	int64_t* predecessor_list;
+	volatile uint64_t next, a, v;
+
+	queue_t* q = queue_new();
+	Bitmap visited_bm = Bitmap_init(g.nglobalverts, false);	
+	clean_pred(pred);	
+
+	queue_enqueue(q, root);
+	SET_BIT(visited_bm, root);	
+	pred[root] = root;
+	while(true)
+	{
+		next = queue_dequeue(q);
+		for(v = rowstarts[next]; v < rowstarts[next+1]; v++)
+		{
+			if(!GET_BIT(visited_bm, v))
+			{
+				SET_BIT(visited_bm, v);
+				queue_enqueue(q, v);
+				pred[v] = next;
+			}
+		}
+		if(queue_empty(q) == true) 
+		{
+			queue_destroy(q);
+			break;
+		}
+	}
 }
 
 //we need edge count to calculate teps. Validation will check if this count is correct

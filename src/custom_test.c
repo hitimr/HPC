@@ -5,7 +5,40 @@
 
 #define TEST_OUT stderr
 
+int test_bitmap();
+int test_queue();
+
+
+
 int main()
+{
+   test_bitmap();
+   test_queue();
+}
+
+int test_queue()
+{
+    queue_t* q = queue_new();
+    
+    int test_len = 100;
+    int test_vals[test_len];
+    int i;
+    for(i=0; i < test_len; i++)
+        test_vals[i] = i;
+
+    for(i=0; i < test_len; i++)
+        queue_enqueue(q, i);
+
+    for(i=0; i < test_len; i++)
+        assert(queue_dequeue(q) == i);
+
+    assert(queue_empty == true);
+    queue_destroy(q);
+    assert(q==nullptr);    
+}
+
+
+int test_bitmap()
 {
     uint64_t len = (uint64_t) 65538;
     Bitmap bm = Bitmap_init(len, false);
@@ -44,13 +77,5 @@ int main()
     Bitmap_free(bm);
     fprintf(TEST_OUT, "finished\n");
 
-    if(!err)
-    {
-        fprintf(TEST_OUT, "All tests passed\n");
-        return 0;
-    }
-    else
-    {
-        return -1;
-    }
+    assert(err==false);
 }

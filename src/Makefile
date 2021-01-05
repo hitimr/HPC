@@ -1,4 +1,4 @@
-CFLAGS = -Drestrict=__restrict__ -O0 -w -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml -g
+CFLAGS = -Drestrict=__restrict__ -O1 -w -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml -g
 LDFLAGS = -lpthread
 MPICC = mpicc
 
