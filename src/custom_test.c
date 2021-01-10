@@ -12,29 +12,41 @@ int test_queue();
 
 int main()
 {
-   test_bitmap();
+   //test_bitmap();
    test_queue();
+   fprintf(TEST_OUT, "All tests passed\n");
 }
 
 int test_queue()
 {
-    queue_t* q = queue_new();
+    uint64_t test_len = 100;
+    uint64_t i; 
+    queue_t q = queue_new(test_len);
+
+    assert(queue_empty(&q));
+    assert(queue_size(&q) == 0);
     
-    int test_len = 100;
-    int test_vals[test_len];
-    int i;
+    
+    uint64_t test_vals[test_len];
     for(i=0; i < test_len; i++)
         test_vals[i] = i;
 
     for(i=0; i < test_len; i++)
-        queue_enqueue(q, i);
+    {
+        queue_enqueue(&q, i);
+        assert(!queue_empty(&q));
+        assert(queue_size(&q) == i+1);
+        assert(q.size == i+1);
+    }
+        
 
     for(i=0; i < test_len; i++)
-        assert(queue_dequeue(q) == i);
-
-    assert(queue_empty == true);
-    queue_destroy(q);
-    assert(q==nullptr);    
+    {
+        assert(!queue_empty(&q));
+        uint64_t val = queue_dequeue(&q);
+        assert(val == i);
+    }
+    assert(queue_empty(&q));
 }
 
 
@@ -75,7 +87,7 @@ int test_bitmap()
     }
 
     Bitmap_free(bm);
-    fprintf(TEST_OUT, "finished\n");
+    
 
     assert(err==false);
 }

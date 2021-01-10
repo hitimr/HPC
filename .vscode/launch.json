@@ -29,7 +29,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/src/graph500_custom_bfs",
-            "args": ["8"],
+            "args": ["16"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
