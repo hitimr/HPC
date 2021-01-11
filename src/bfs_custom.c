@@ -88,8 +88,6 @@ void run_bfs_c(int64_t root, int64_t* pred)
 
 	CLEAN_VISITED();
 
-	myCppFunction(10);
-
 	qc=0; sum=1; q2c=0;
 
 	nvisited=1;
