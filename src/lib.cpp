@@ -13,3 +13,8 @@ void myCppFunction(int n)
     cout << bla << endl;
     return;
 }
+
+void run_bfs_cpp(int64_t root, int64_t* pred)
+{
+    return;
+}
