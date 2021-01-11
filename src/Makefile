@@ -3,7 +3,7 @@ LDFLAGS = -lpthread
 MPICC = mpicc
 MPICXX = mpic++
 
-all: graph500_reference_bfs custom test
+all: graph500_reference_bfs test bfs_custom
 
 GENERATOR_SOURCES = ../generator/graph_generator.c ../generator/make_graph.c ../generator/splittable_mrg.c ../generator/utils.c
 SOURCES = main.c utils.c validate.c ../aml/aml.c custom.c
@@ -15,9 +15,9 @@ lib: lib.cpp lib.h
 graph500_reference_bfs: bfs_reference.c $(SOURCES) $(HEADERS) $(GENERATOR_SOURCES) csr_reference.c
 	$(MPICC) $(CFLAGS) $(LDFLAGS) -o graph500_reference_bfs bfs_reference.c csr_reference.c $(SOURCES) $(GENERATOR_SOURCES) -lm
 
-custom: bfs_custom.c $(SOURCES) $(HEADERS) $(GENERATOR_SOURCES) csr_reference.c lib.o 
+bfs_custom: bfs_custom.c $(SOURCES) $(HEADERS) $(GENERATOR_SOURCES) csr_reference.c lib.o 
 	$(MPICC) $(CFLAGS) $(LDFLAGS) -o graph500_custom_bfs bfs_custom.c csr_reference.c $(SOURCES) $(GENERATOR_SOURCES) lib.o -lstdc++ -lm
-	#./graph500_custom_bfs 8 | grep median_time
+	./graph500_custom_bfs 6 | grep median_time
 
 test: custom.c custom_test.c
 	gcc -g -o custom_test custom.c custom_test.c

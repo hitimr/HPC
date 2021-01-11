@@ -8,6 +8,7 @@ extern "C"
     #include <stdint.h>
 
     void run_bfs_cpp(int64_t root, int64_t* pred);
+    void bfs_serial(int64_t root, int64_t* pred);
 
 #ifdef __cplusplus
 }
