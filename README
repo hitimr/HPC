@@ -1,3 +1,25 @@
+Ich habs jetzt nicht auf einem anderen PC getestet aber kompilieren sollte mit foglenden Befehlen gehen:
+
+    cd src
+    make
+
+make führt dabei auch das program mit einer scale von 18 aus (kann im makefile geändert werden)
+entfernen aller erstellten dateien geht mit "make clean"
+
+Grundsätzlich solltest du auch mit VS Code debuggen können. Dafür den Repo-Ordner (HPC-main) mit VS Code öffnen und F5 drücken.
+Das debuggen von .c files geht immer aber in .cpp funktionieren die breakpoints manchmal einfach nicht. Ich konnte aber noch nicht herausfinden wieso..
+
+Neuen c++ Code einfach in lib.cpp schreiben und neue Funktionen entsprechend in lib.h deklarieren.
+Um auf globale Variablen aus den c-files zugreifen zu können musst du sie erst mit "extern [type] [name]" am anfang von lib.cpp deklarieren.
+Das einbiden von graph500 header files oder structs in cpp code ist momentan leider nicht möglich.
+Falls du doch daten aus einem struct brauchst würde ich dir raten diese in bfs_custom.c auf einen standard-datentyp zurückzuführen und dann als funktionsparameter zu übergeben.
+
+LG Mario
+
+
+
+
+
 Graph500-3.0.0
 
 Compiling should be pretty straightforward as long as you have a valid MPI-3 library loaded in your PATH.
