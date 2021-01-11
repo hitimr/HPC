@@ -22,6 +22,7 @@
 #include <limits.h>
 #include <assert.h>
 #include <stdint.h>
+#include "lib.h"
 
 #ifdef DEBUGSTATS
 extern int64_t nbytes_sent,nbytes_rcvd;
@@ -85,6 +86,8 @@ void run_bfs(int64_t root, int64_t* pred) {
 	aml_register_handler(visithndl,1);
 
 	CLEAN_VISITED();
+
+	myCppFunction(10);
 
 	qc=0; sum=1; q2c=0;
 

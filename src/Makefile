@@ -6,13 +6,16 @@ all: graph500_reference_bfs custom test
 
 GENERATOR_SOURCES = ../generator/graph_generator.c ../generator/make_graph.c ../generator/splittable_mrg.c ../generator/utils.c
 SOURCES = main.c utils.c validate.c ../aml/aml.c custom.c
-HEADERS = common.h csr_reference.h bitmap_reference.h custom.h
+HEADERS = common.h csr_reference.h bitmap_reference.h custom.h lib.h
+
+lib: lib.cpp lib.h
+	g++ -c -g lib.cpp
 
 graph500_reference_bfs: bfs_reference.c $(SOURCES) $(HEADERS) $(GENERATOR_SOURCES) csr_reference.c
 	$(MPICC) $(CFLAGS) $(LDFLAGS) -o graph500_reference_bfs bfs_reference.c csr_reference.c $(SOURCES) $(GENERATOR_SOURCES) -lm
 
-custom: bfs_custom.c $(SOURCES) $(HEADERS) $(GENERATOR_SOURCES) csr_reference.c
-	$(MPICC) $(CFLAGS) $(LDFLAGS) -o graph500_custom_bfs bfs_custom.c csr_reference.c $(SOURCES) $(GENERATOR_SOURCES) -lm
+custom: bfs_custom.c $(SOURCES) $(HEADERS) $(GENERATOR_SOURCES) csr_reference.c lib.o 
+	$(MPICC) $(CFLAGS) $(LDFLAGS) -o graph500_custom_bfs bfs_custom.c csr_reference.c $(SOURCES) $(GENERATOR_SOURCES) lib.o -lm
 	./graph500_custom_bfs 8 | grep median_time
 
 test: custom.c custom_test.c
