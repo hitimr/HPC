@@ -2,3 +2,4 @@
 src/graph500_*
 src/log.txt
 src/custom_test
+src/*.o
