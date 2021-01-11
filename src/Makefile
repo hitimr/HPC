@@ -17,7 +17,7 @@ graph500_reference_bfs: bfs_reference.c $(SOURCES) $(HEADERS) $(GENERATOR_SOURCE
 
 bfs_custom: bfs_custom.c $(SOURCES) $(HEADERS) $(GENERATOR_SOURCES) csr_reference.c lib.o 
 	$(MPICC) $(CFLAGS) $(LDFLAGS) -o graph500_custom_bfs bfs_custom.c csr_reference.c $(SOURCES) $(GENERATOR_SOURCES) lib.o -lstdc++ -lm
-	./graph500_custom_bfs 6 | grep median_time
+	./graph500_custom_bfs 18 | grep median_time
 
 test: custom.c custom_test.c
 	gcc -g -o custom_test custom.c custom_test.c

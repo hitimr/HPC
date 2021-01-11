@@ -83,8 +83,7 @@ void run_bfs_c(int64_t root, int64_t* pred)
 	int64_t nvisited;
 	long sum;
 	unsigned int i,j,k,lvl=1;
-	
-	aml_register_handler(visithndl,1);
+
 
 	CLEAN_VISITED();
 

@@ -14,7 +14,7 @@ struct oned_csr_graph;
 extern int64_t *column;
 extern int * rowstarts;
 extern int64_t visited_size;
-int64_t *pred_glob;
+extern int64_t *pred_glob;
 
 // required for COLUMN()-Macro
 #define BYTES_PER_VERTEX 6
@@ -34,7 +34,7 @@ void bfs_serial(int64_t root, int64_t* pred)
     int64_t u,j,v;
 
     // Initializing the visited array. the predecessor list is cleared before urn_bfs() is called
-    vector<bool> vis(visited_size, false);
+    vector<bool> vis(visited_size*64+1, false);
     queue<int64_t> q; // Create empty queue
 
     q.push(root); // Enter the starting vertex into the queue
