@@ -78,11 +78,12 @@ void make_graph_data_structure(const tuple_graph* const tg) {
 	visited = xmalloc(visited_size*sizeof(unsigned long));
 }
 
-void run_bfs(int64_t root, int64_t* pred) {
+void run_bfs_c(int64_t root, int64_t* pred)
+{
 	int64_t nvisited;
 	long sum;
 	unsigned int i,j,k,lvl=1;
-	pred_glob=pred;
+	
 	aml_register_handler(visithndl,1);
 
 	CLEAN_VISITED();
@@ -116,6 +117,13 @@ void run_bfs(int64_t root, int64_t* pred) {
 
 		qc=0;
 	}
+}
+
+void run_bfs(int64_t root, int64_t* pred)
+{
+	pred_glob=pred;
+
+	run_bfs_c(root, pred);	
 }
 
 //we need edge count to calculate teps. Validation will check if this count is correct
