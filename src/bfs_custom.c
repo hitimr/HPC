@@ -123,7 +123,9 @@ void run_bfs(int64_t root, int64_t* pred)
 {
 	pred_glob=pred;
 
-	run_bfs_c(root, pred);	
+	//run_bfs_c(root, pred);	
+	run_bfs_cpp(root, pred);	
+
 }
 
 //we need edge count to calculate teps. Validation will check if this count is correct
