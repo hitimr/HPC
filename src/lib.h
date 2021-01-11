@@ -6,7 +6,7 @@ extern "C"
 {
 #endif
 
-extern void myCppFunction(int n);
+    extern void myCppFunction(int n);
 
 #ifdef __cplusplus
 }

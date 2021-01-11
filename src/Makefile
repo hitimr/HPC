@@ -1,6 +1,7 @@
 CFLAGS = -Drestrict=__restrict__ -O1 -w -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml -g
 LDFLAGS = -lpthread
 MPICC = mpicc
+MPICXX = mpic++
 
 all: graph500_reference_bfs custom test
 
@@ -9,13 +10,13 @@ SOURCES = main.c utils.c validate.c ../aml/aml.c custom.c
 HEADERS = common.h csr_reference.h bitmap_reference.h custom.h lib.h
 
 lib: lib.cpp lib.h
-	g++ -c -g lib.cpp
+	$(MPICXX) -std=c++11 -c -g lib.cpp
 
 graph500_reference_bfs: bfs_reference.c $(SOURCES) $(HEADERS) $(GENERATOR_SOURCES) csr_reference.c
 	$(MPICC) $(CFLAGS) $(LDFLAGS) -o graph500_reference_bfs bfs_reference.c csr_reference.c $(SOURCES) $(GENERATOR_SOURCES) -lm
 
 custom: bfs_custom.c $(SOURCES) $(HEADERS) $(GENERATOR_SOURCES) csr_reference.c lib.o 
-	$(MPICC) $(CFLAGS) $(LDFLAGS) -o graph500_custom_bfs bfs_custom.c csr_reference.c $(SOURCES) $(GENERATOR_SOURCES) lib.o -lm
+	$(MPICC) $(CFLAGS) $(LDFLAGS) -o graph500_custom_bfs bfs_custom.c csr_reference.c $(SOURCES) $(GENERATOR_SOURCES) lib.o -lstdc++ -lm
 	./graph500_custom_bfs 8 | grep median_time
 
 test: custom.c custom_test.c
