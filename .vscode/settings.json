@@ -4,6 +4,7 @@
         "type_traits": "cpp",
         "utility": "cpp",
         "map": "cpp",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "ostream": "cpp"
     }
 }
