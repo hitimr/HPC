@@ -21,6 +21,9 @@ extern "C" {
 	//execution of AM might be delayed till next aml_barrier() call
 	extern void aml_send(void *srcaddr, int type,int length, int node );
 
+	extern void aml_scatter();
+	extern void aml_print();
+
 	// rank and size
 	extern int aml_my_pe( void );
 	extern int aml_n_pes( void );

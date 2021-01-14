@@ -35,6 +35,8 @@
 #define SENDSOURCE(node) ( sendbuf+(AGGR*nbuf[node]))
 #define SENDSOURCE_intra(node) ( sendbuf_intra+(AGGR_intra*nbuf_intra[node]) )
 
+static int rec_buffer[2];
+
 #define ushort unsigned short
 static int myproc,num_procs;
 static int mygroup,num_groups;
@@ -129,6 +131,8 @@ static void process_intra(int fromlocal,int length ,char* message) {
 	}
 }
 
+
+
 // poll intranode message
 inline void aml_poll_intra(void) {
 	int flag, from, length,index;
@@ -205,6 +209,33 @@ inline void flush_buffer_intra( int node ) {
 	acks_intra[node] = 0;
 	tmp=activebuf_intra[index]; activebuf_intra[index]=nbuf_intra[node]; nbuf_intra[node]=tmp; //swap bufs
 
+}
+
+SOATTR void aml_scatter()
+{
+	int send_buffer[4];
+	send_buffer[0] = 1;
+	send_buffer[1] = 20;
+	send_buffer[2] = 300;
+	send_buffer[3] = 4000;
+
+	MPI_Scatter(send_buffer, 2, MPI_INT, rec_buffer, 2, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Barrier(MPI_COMM_WORLD);
+
+
+}
+
+SOATTR void aml_print()
+{
+	int nm = 0;
+	for(int i = 0; i<2; i++)
+	{
+		nm += rec_buffer[i];
+		//printf("iter: %d; %d; %d\n",irec_buffer[myproc+i], myproc);
+	}
+	printf("node + array = %d; node = %d\n",nm,myproc);
+
+	
 }
 
 inline void aml_send_intra(void *src, int type, int length, int local, int from) {

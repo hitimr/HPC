@@ -1,4 +1,6 @@
 #include "lib.h"
+#include "../aml/aml.h"
+#include "queue_c.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
@@ -23,8 +25,10 @@ extern int64_t *pred_glob;
 
 void run_bfs_cpp(int64_t root, int64_t* pred)
 {
-    bfs_serial(root, pred);
+    //bfs_serial(root, pred);
     // TODO: bfs_parallel()
+
+    bfs_parallel(root, pred);
 }
 
 // Serial BFS-Algorithm taken from 
@@ -36,6 +40,8 @@ void bfs_serial(int64_t root, int64_t* pred)
     // Initializing the visited array. the predecessor list is cleared before urn_bfs() is called
     vector<bool> vis(visited_size*64+1, false);
     queue<int64_t> q; // Create empty queue
+
+
 
     q.push(root); // Enter the starting vertex into the queue
     vis[root] = true;
@@ -49,6 +55,7 @@ void bfs_serial(int64_t root, int64_t* pred)
         for(j = rowstarts[u]; j < rowstarts[u+1]; j++)
         {
             v = COLUMN(j);
+            //send_visit(COLUMN(0),vis[0]);
             if(!vis[v]) 
             {
                 vis[v] = true;
@@ -58,4 +65,17 @@ void bfs_serial(int64_t root, int64_t* pred)
         }
     }
     return;
+}
+
+void bfs_parallel(int64_t root, int64_t* pred)
+{
+    int64_t u,j,v;
+
+    aml_scatter();
+
+    aml_print();
+	
+
+
+    pred_glob[0] = 1;
 }
