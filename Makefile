@@ -14,8 +14,8 @@ INC_DIRS := $(shell find $(SRC_DIRS) -type d)
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
 CFLAGS += -Drestrict=__restrict__ -O3 -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml -g
-CPPFLAGS ?= $(INC_FLAGS) -MMD -MP
-LDFLAGS += -lm -lpthread
+CPPFLAGS ?= $(INC_FLAGS) -MMD -MP -g
+LDFLAGS += -lm -lpthread -lstdc++
 
 # Compilers
 CC = mpicc
