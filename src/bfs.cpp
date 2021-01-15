@@ -27,6 +27,11 @@ void run_bfs_cpp(int64_t root, int64_t* pred)
     bfs_parallel(root, pred);
 }
 
+void bfs_parallel(int64_t root, int64_t* pred)
+{
+    return;
+}
+
 
 // Serial BFS-Algorithm taken from 
 // https://www.research.manchester.ac.uk/portal/files/60828897/FULL_TEXT.PDF page 34 Algorithm 1
