@@ -23,8 +23,9 @@ LDFLAGS += -lm -lpthread -lstdc++
 CC = mpicc
 CXX = mpic++
 
+# Linking
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
-	$(CC) $(OBJS) -o $@ $(LDFLAGS)
+	$(CXX) $(OBJS) -o $@ $(LDFLAGS)
 
 # c source
 $(BUILD_DIR)/%.c.o: %.c
@@ -37,7 +38,7 @@ $(BUILD_DIR)/%.cpp.o: %.cpp
 	$(CXX) $(CPPFLAGS) -c $< -o $@
 
 run:
-	./build/$(TARGET_EXEC) 6
+	mpirun -np 4 ./build/$(TARGET_EXEC) 6
 
 .PHONY: clean
 
