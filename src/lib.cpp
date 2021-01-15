@@ -1,6 +1,4 @@
 #include "lib.h"
-#include "../aml/aml.h"
-#include "queue_c.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
@@ -69,13 +67,5 @@ void bfs_serial(int64_t root, int64_t* pred)
 
 void bfs_parallel(int64_t root, int64_t* pred)
 {
-    int64_t u,j,v;
 
-    aml_scatter();
-
-    aml_print();
-	
-
-
-    pred_glob[0] = 1;
 }
