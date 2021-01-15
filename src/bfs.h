@@ -1,5 +1,5 @@
-#ifndef OUTPUT_FROM_CPP_H
-#define OUTPUT_FROM_CPP_H
+#ifndef BFS_H
+#define BFS_H
 
 #ifdef __cplusplus
 extern "C"

@@ -22,7 +22,7 @@
 #include <limits.h>
 #include <assert.h>
 #include <stdint.h>
-#include "lib.h"
+#include "bfs.h"
 
 #ifdef DEBUGSTATS
 extern int64_t nbytes_sent,nbytes_rcvd;

@@ -1,5 +1,5 @@
 *~
 src/graph500_*
-src/log.txt
-src/custom_test
 *.o
+*.d
+build/
