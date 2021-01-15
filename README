@@ -1,3 +1,25 @@
+15.01.2021: Hab ein neues Makefile erstellt weil das von graph500 furchtbar ist... Das neue ist jetzt auch im root folder (das alte nach wievor in ./src)
+Files für die referenz implementierung und sssp hab ich auch rausgeworfen
+Der cpp Code ist jetzt in bfs.cpp. Ich hab testweise eine Master-Slave kommunikation erstellt. Alle erstellten artefakte sind in ./build.
+
+Zum starten im root folder folgende Befehle ausführen:
+
+make
+make run
+
+Zum aufräumen:
+make clean
+
+Debuggen mit VS Code sollte jetzt auch mit cpp funktionieren. Allerdings läuft dabei nur die Master-Instanz
+
+LG Mario
+
+
+
+
+
+
+
 Ich habs jetzt nicht auf einem anderen PC getestet aber kompilieren sollte mit foglenden Befehlen gehen:
 
     cd src
