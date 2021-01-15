@@ -10,6 +10,7 @@ extern "C"
     void run_bfs_cpp(int64_t root, int64_t* pred);
     void bfs_serial(int64_t root, int64_t* pred);
     void bfs_parallel(int64_t root, int64_t* pred);
+    void test_mpi();
 
 #ifdef __cplusplus
 }
