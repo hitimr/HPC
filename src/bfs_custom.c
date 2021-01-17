@@ -46,6 +46,7 @@ oned_csr_graph g;
 // custom globals
 int64_t g_pred_size;
 int64_t g_nlocalverts;
+int64_t g_nglobalverts;
 
 typedef struct visitmsg {
 	//both vertexes are VERTEX_LOCAL components as we know src and dest PEs to reconstruct VERTEX_GLOBAL
@@ -126,6 +127,7 @@ void run_bfs(int64_t root, int64_t* pred)
 
 	g_pred_size = g.nglobalverts;
 	g_nlocalverts = g.nlocalverts;
+	g_nglobalverts = g.nglobalverts;
 
 	//run_bfs_c(root, pred);	
 	run_bfs_cpp(root, pred);	

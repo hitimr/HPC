@@ -4,7 +4,6 @@
 #include <queue>
 #include <mpi.h>
 
-using namespace std;
 
 struct oned_csr_graph;
 
@@ -13,18 +12,26 @@ extern int64_t *column;
 extern int * rowstarts;
 extern int64_t visited_size;   
 extern int64_t *pred_glob;
-extern int64_t g_pred_size; // TODO: remove before release
-extern int64_t g_nlocalverts;
 extern int lgsize;
 
+// custom globals
+extern int64_t g_pred_size; // TODO: remove before release
+extern int64_t g_nlocalverts;
+extern int64_t g_nglobalverts;
+
+int g_my_rank;
+
 // Macros copied from reference implementation to handle the graph data structure
-// required for COLUMN()-Macro
+// since we cant include c headers from graph500 we need to copy those
 #define BYTES_PER_VERTEX 6
 #define COLUMN(i) (*(int64_t*)(((char*)column)+(BYTES_PER_VERTEX*i)) & (int64_t)(0xffffffffffffffffULL>>(64-8*BYTES_PER_VERTEX)))
 
 
 #define MOD_SIZE(v) ((v) & ((1 << lgsize) - 1))
+#define DIV_SIZE(v) ((v) >> lgsize)
+
 #define VERTEX_OWNER(v) ((int)(MOD_SIZE(v)))
+#define VERTEX_LOCAL(v) ((size_t)(DIV_SIZE(v)))
 
 #define MASTER 0
 #define TAG_DEFAULT 0
@@ -32,6 +39,8 @@ extern int lgsize;
 
 #define NEXT_VERTEX 0x1
 
+
+using namespace std;
 
 void run_bfs_cpp(int64_t root, int64_t* pred)
 {
@@ -44,18 +53,87 @@ void run_bfs_cpp(int64_t root, int64_t* pred)
 
 void bfs_parallel(int64_t root, int64_t* pred)
 {
-    int my_rank;
+    int64_t v;
     queue<int64_t>* q_work = new queue<int64_t>();    
     queue<int64_t>* q_buffer = new queue<int64_t>();
+    queue<int64_t>* tmp; // for swapping
 
-    vector<bool> vis(g_nlocalverts, false);
+    vector<bool> visited = vector<bool>(g_nglobalverts, false);
 
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    MPI_Comm_rank(MPI_COMM_WORLD, &g_my_rank);
 
-    if(VERTEX_OWNER(root) == my_rank)
+    int dest, source;
+    if(g_my_rank==0) {dest=1; source=0;}
+    else {dest=0; source=1;}
+
+    if(VERTEX_OWNER(root) == g_my_rank)
     {
-        cout << "Root " << root <<" is owned by rank " << my_rank << endl;
+        cout << "Root " << root <<" is owned by rank " << g_my_rank << endl;        
+		pred[VERTEX_LOCAL(root)] = root;
+        visited[root] = true;
+        q_work->push(VERTEX_LOCAL(root));
     }
+
+    while(!q_work->empty())
+    {
+        vector<int64_t> external_visits;
+
+        int64_t u = q_work->front();
+        q_work->pop();
+
+        // traverse column of adjecency matrix of vertex u
+        for(int64_t j = rowstarts[u]; j < rowstarts[u+1]; j++)
+        {
+            int64_t v = COLUMN(j);
+            if(!visited.at(v)) 
+            {
+                int owner = VERTEX_OWNER(v);
+
+                visited.at(v) = true;
+                q_buffer->push(v);
+                pred_glob[v] = u;
+                
+                if(owner != g_my_rank)
+                {
+                    external_visits.push_back(v);
+                }
+            }
+        }
+
+        MPI_Request request;
+        if(external_visits.size() > 0)
+        {
+            MPI_Isend(
+                external_visits.data(),
+                external_visits.size(),
+                MPI_INT64_T,
+                dest,
+                0,
+                MPI_COMM_WORLD,
+                &request                      
+            );
+        }
+
+        int64_t buffer[1024];
+        for(int i = 0; i < 1024; i++) buffer[i] = -1;
+        
+        MPI_Irecv(
+            buffer,
+            1024,
+            MPI_INT64_T,
+            source,
+            0,
+            MPI_COMM_WORLD, // Communicator
+            &request
+        );
+
+        int i=0;
+        while(buffer[i] != -1)
+        {
+            visited[buffer[i]] = true;
+        }
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void master(int64_t root, int64_t* pred)
