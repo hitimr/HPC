@@ -12,6 +12,9 @@ extern "C"
     void bfs_parallel(int64_t root, int64_t* pred);
     void test_mpi();
 
+    void slave(int64_t root, int64_t* pred);
+    void master(int64_t root, int64_t* pred);
+
 #ifdef __cplusplus
 }
 #endif

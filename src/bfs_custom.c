@@ -43,6 +43,10 @@ int * rowstarts;
 
 oned_csr_graph g;
 
+// custom globals
+int64_t g_pred_size;
+int64_t g_nlocalverts;
+
 typedef struct visitmsg {
 	//both vertexes are VERTEX_LOCAL components as we know src and dest PEs to reconstruct VERTEX_GLOBAL
 	int vloc;
@@ -119,6 +123,9 @@ void run_bfs_c(int64_t root, int64_t* pred)
 void run_bfs(int64_t root, int64_t* pred)
 {
 	pred_glob=pred;
+
+	g_pred_size = g.nglobalverts;
+	g_nlocalverts = g.nlocalverts;
 
 	//run_bfs_c(root, pred);	
 	run_bfs_cpp(root, pred);	

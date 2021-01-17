@@ -11,12 +11,26 @@ struct oned_csr_graph;
 // global variables from bfs_custom.c
 extern int64_t *column;
 extern int * rowstarts;
-extern int64_t visited_size;
+extern int64_t visited_size;   
 extern int64_t *pred_glob;
+extern int64_t g_pred_size; // TODO: remove before release
+extern int64_t g_nlocalverts;
+extern int lgsize;
 
+// Macros copied from reference implementation to handle the graph data structure
 // required for COLUMN()-Macro
 #define BYTES_PER_VERTEX 6
 #define COLUMN(i) (*(int64_t*)(((char*)column)+(BYTES_PER_VERTEX*i)) & (int64_t)(0xffffffffffffffffULL>>(64-8*BYTES_PER_VERTEX)))
+
+
+#define MOD_SIZE(v) ((v) & ((1 << lgsize) - 1))
+#define VERTEX_OWNER(v) ((int)(MOD_SIZE(v)))
+
+#define MASTER 0
+#define TAG_DEFAULT 0
+#define TAG_SOLUTION 1
+
+#define NEXT_VERTEX 0x1
 
 
 void run_bfs_cpp(int64_t root, int64_t* pred)
@@ -24,14 +38,103 @@ void run_bfs_cpp(int64_t root, int64_t* pred)
     //bfs_serial(root, pred);
     // TODO: bfs_parallel()
 
-    //bfs_parallel(root, pred);
-    test_mpi();
+    bfs_parallel(root, pred);
+    //test_mpi();
 }
 
 void bfs_parallel(int64_t root, int64_t* pred)
 {
-	
+    int my_rank;
+    queue<int64_t>* q_work = new queue<int64_t>();    
+    queue<int64_t>* q_buffer = new queue<int64_t>();
+
+    vector<bool> vis(g_nlocalverts, false);
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+
+    if(VERTEX_OWNER(root) == my_rank)
+    {
+        cout << "Root " << root <<" is owned by rank " << my_rank << endl;
+    }
 }
+
+void master(int64_t root, int64_t* pred)
+{
+    int64_t u,j,v;
+
+    // Initializing the visited array. the predecessor list is cleared before urn_bfs() is called
+    vector<bool> vis(visited_size*64+1, false);
+    queue<int64_t> q; // Create empty queue
+
+    q.push(root); // Enter the starting vertex into the queue
+    vis[root] = true;
+    pred[root] = root;
+
+    while(!q.empty())
+    {
+        u = q.front();
+        q.pop();
+
+        for(j = rowstarts[u]; j < rowstarts[u+1]; j++)
+        {
+            v = COLUMN(j);
+            if(!vis[v]) 
+            {
+                vis[v] = true;
+                q.push(v);
+                pred_glob[v] = u;
+            }
+        }
+    }
+    /*
+
+    //cout << "Finished calcs" << endl;
+    int dest = 1;
+    MPI_Send(
+        pred,   //buffer
+        g_pred_size, // size
+        MPI_INT64_T, // Dtype
+        dest, // destination
+        TAG_SOLUTION, // Tag
+        MPI_COMM_WORLD // Communicator
+        );
+    */
+
+   int64_t ints[2] = {1,2};
+	//MPI_Send(pred,32, MPI_INT64_T,1,0,MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    return;
+}
+
+void slave(int64_t root, int64_t* pred)
+{
+    //int64_t* buffer = (int64_t*)malloc(visited_size * 64 * sizeof(int64_t));
+    int tag;
+    int my_rank;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+
+    /*
+    // Wait for new data
+    MPI_Recv(
+        pred,  // Data Buffer
+        g_pred_size,      // length
+        MPI_INT64_T, // Dtype
+        MASTER, // Source
+        TAG_SOLUTION, // Tag
+        MPI_COMM_WORLD, // Communicator
+        MPI_STATUS_IGNORE
+    );  
+    cout << "Recieved somethin" << endl;
+    */
+   
+    for(int i = 0; i<32; i++)
+        cout << "i=" << i << "\t" << pred_glob[i] << endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    return;
+}
+
 
 
 // Serial BFS-Algorithm taken from 
