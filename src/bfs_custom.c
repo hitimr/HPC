@@ -123,7 +123,6 @@ void run_bfs_c(int64_t root, int64_t* pred)
 
 void run_bfs(int64_t root, int64_t* pred)
 {
-	pred_glob=pred;
 
 	g_pred_size = g.nglobalverts;
 	g_nlocalverts = g.nlocalverts;

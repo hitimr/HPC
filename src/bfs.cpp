@@ -1,8 +1,12 @@
 #include "bfs.h"
+#include "graph500_macros.h"
 #include <iostream>
+#include <string.h>
 #include <vector>
 #include <queue>
 #include <mpi.h>
+#include <algorithm>
+#include "../aml/aml.h"
 
 
 struct oned_csr_graph;
@@ -19,6 +23,8 @@ extern int64_t g_pred_size; // TODO: remove before release
 extern int64_t g_nlocalverts;
 extern int64_t g_nglobalverts;
 
+unsigned long *visited;
+
 int g_my_rank;
 int g_comm_size;
 
@@ -30,21 +36,57 @@ int g_comm_size;
 
 #define MOD_SIZE(v) ((v) & ((1 << lgsize) - 1))
 #define DIV_SIZE(v) ((v) >> lgsize)
+#define MUL_SIZE(x) ((x) << lgsize)
 
 #define VERTEX_OWNER(v) ((int)(MOD_SIZE(v)))
 #define VERTEX_LOCAL(v) ((size_t)(DIV_SIZE(v)))
+#define VERTEX_TO_GLOBAL(r, i) ((int64_t)(MUL_SIZE((uint64_t)((i))) + (int)((r))))
 
-#define MASTER 0
-#define TAG_DEFAULT 0
-#define TAG_SOLUTION 1
+#define ulong_bits 64
+#define ulong_mask &63
+#define ulong_shift >>6
+#define SET_VISITED(v) do {visited[VERTEX_LOCAL((v)) ulong_shift] |= (1UL << (VERTEX_LOCAL((v)) ulong_mask));} while (0)
+#define SET_VISITEDLOC(v) do {visited[(v) ulong_shift] |= (1ULL << ((v) ulong_mask));} while (0)
+#define TEST_VISITED(v) ((visited[VERTEX_LOCAL((v)) ulong_shift] & (1UL << (VERTEX_LOCAL((v)) ulong_mask))) != 0)
+#define TEST_VISITEDLOC(v) ((visited[(v) ulong_shift] & (1ULL << ((v) ulong_mask))) != 0)
+#define CLEAN_VISITED()  memset(visited,0,visited_size*sizeof(unsigned long));
 
-#define NEXT_VERTEX 0x1
 
 
 using namespace std;
 
+queue<int64_t>* q_work;    
+queue<int64_t>* q_buffer;
+
+
+typedef struct visitmsg {
+	//both vertexes are VERTEX_LOCAL components as we know src and dest PEs to reconstruct VERTEX_GLOBAL
+	int vloc;
+	int vfrom;
+} visitmsg;
+
+//AM-handler for check&visit
+void visithndl(int from,void* data,int sz) {
+	visitmsg *m = (visitmsg*) data;
+	if (!TEST_VISITEDLOC(m->vloc)) 
+    {
+		SET_VISITEDLOC(m->vloc);
+		q_buffer->push(m->vloc);
+		pred_glob[m->vloc] = VERTEX_TO_GLOBAL(from, m->vfrom);
+	}
+}
+
+inline void send_visit(int64_t glob, int from) 
+{
+	visitmsg m = { VERTEX_LOCAL(glob), from };
+	aml_send(&m, 1, sizeof(visitmsg), VERTEX_OWNER(glob));
+}
+
+
+
 void run_bfs_cpp(int64_t root, int64_t* pred)
 {
+    pred_glob=pred;
     //bfs_serial(root, pred);
     // TODO: bfs_parallel()
 
@@ -55,28 +97,29 @@ void run_bfs_cpp(int64_t root, int64_t* pred)
 void bfs_parallel(int64_t root, int64_t* pred)
 {
     int64_t v;
-    queue<int64_t>* q_work = new queue<int64_t>();    
-    queue<int64_t>* q_buffer = new queue<int64_t>();
-    queue<int64_t>* tmp; // for swapping
+    int64_t queue_size;
+    int rank;
 
-    vector<bool> visited = vector<bool>(g_nglobalverts, false);
+    q_work =    new queue<int64_t>();    
+    q_buffer =  new queue<int64_t>();
 
-    MPI_Comm_rank(MPI_COMM_WORLD, &g_my_rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &g_comm_size);
+    
+	aml_register_handler(visithndl,1);
+    CLEAN_VISITED()
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     int dest, source;
-    if(g_my_rank==0) {dest=1; source=0;}
+    if(rank == 0) {dest=1; source=0;}
     else {dest=0; source=1;}
 
-    if(VERTEX_OWNER(root) == g_my_rank)
-    {      
+	if(VERTEX_OWNER(root) == rank) 
+    {
 		pred[VERTEX_LOCAL(root)] = root;
-        visited[root] = true;
-        q_work->push(VERTEX_LOCAL(root));
-    }
+		SET_VISITED(root);
+		q_work->push(VERTEX_LOCAL(root));
+	} 
 
-    vector<int64_t> visits;
-    while(!q_work->empty())
+    do
     {       
         while(!q_work->empty())
         {         
@@ -86,39 +129,17 @@ void bfs_parallel(int64_t root, int64_t* pred)
             // traverse column of adjecency matrix of vertex u
             for(int64_t j = rowstarts[u]; j < rowstarts[u+1]; j++)
             {
-                int64_t v = COLUMN(j);
-                if(!visited.at(v)) 
-                {
-                    visited.at(v) = true;
-                    pred_glob[v] = v;
-                    visits.push_back(v);
-                }
+                send_visit(COLUMN(j), u);
             }
         }
+        aml_barrier();
 
-        int64_t visit_size = visits.size();
-        vector<int64_t> recv_buffer = vector<int64_t>(g_comm_size);
-        MPI_Allgather(
-            &visit_size,
-            1,
-            MPI_INT64_T,
-            &recv_buffer[0],
-            g_comm_size,
-            MPI_INT64_T,
-            MPI_COMM_WORLD
-        );
-        
-        MPI_Barrier(MPI_COMM_WORLD);
-
-
-
-        for (auto i = recv_buffer.begin(); i != recv_buffer.end(); ++i)
-                std::cout << *i << ' ';
-        MPI_Barrier(MPI_COMM_WORLD);
+        swap(q_work, q_buffer);
+        queue_size = (int64_t) q_work->size();
+        MPI_Allreduce(MPI_IN_PLACE, &queue_size, 1, MPI_INT64_T, MPI_SUM,MPI_COMM_WORLD);
     }
-    tmp = q_work;
-    q_buffer = q_work;
-    q_work = tmp;
+    while(queue_size);    
+    aml_barrier();
 }
 
 void master(int64_t root, int64_t* pred)
