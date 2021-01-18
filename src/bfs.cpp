@@ -20,6 +20,7 @@ extern int64_t g_nlocalverts;
 extern int64_t g_nglobalverts;
 
 int g_my_rank;
+int g_comm_size;
 
 // Macros copied from reference implementation to handle the graph data structure
 // since we cant include c headers from graph500 we need to copy those
@@ -61,79 +62,63 @@ void bfs_parallel(int64_t root, int64_t* pred)
     vector<bool> visited = vector<bool>(g_nglobalverts, false);
 
     MPI_Comm_rank(MPI_COMM_WORLD, &g_my_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &g_comm_size);
 
     int dest, source;
     if(g_my_rank==0) {dest=1; source=0;}
     else {dest=0; source=1;}
 
     if(VERTEX_OWNER(root) == g_my_rank)
-    {
-        cout << "Root " << root <<" is owned by rank " << g_my_rank << endl;        
+    {      
 		pred[VERTEX_LOCAL(root)] = root;
         visited[root] = true;
         q_work->push(VERTEX_LOCAL(root));
     }
 
+    vector<int64_t> visits;
     while(!q_work->empty())
-    {
-        vector<int64_t> external_visits;
+    {       
+        while(!q_work->empty())
+        {         
+            int64_t u = q_work->front();
+            q_work->pop();
 
-        int64_t u = q_work->front();
-        q_work->pop();
-
-        // traverse column of adjecency matrix of vertex u
-        for(int64_t j = rowstarts[u]; j < rowstarts[u+1]; j++)
-        {
-            int64_t v = COLUMN(j);
-            if(!visited.at(v)) 
+            // traverse column of adjecency matrix of vertex u
+            for(int64_t j = rowstarts[u]; j < rowstarts[u+1]; j++)
             {
-                int owner = VERTEX_OWNER(v);
-
-                visited.at(v) = true;
-                q_buffer->push(v);
-                pred_glob[v] = u;
-                
-                if(owner != g_my_rank)
+                int64_t v = COLUMN(j);
+                if(!visited.at(v)) 
                 {
-                    external_visits.push_back(v);
+                    visited.at(v) = true;
+                    pred_glob[v] = v;
+                    visits.push_back(v);
                 }
             }
         }
 
-        MPI_Request request;
-        if(external_visits.size() > 0)
-        {
-            MPI_Isend(
-                external_visits.data(),
-                external_visits.size(),
-                MPI_INT64_T,
-                dest,
-                0,
-                MPI_COMM_WORLD,
-                &request                      
-            );
-        }
-
-        int64_t buffer[1024];
-        for(int i = 0; i < 1024; i++) buffer[i] = -1;
-        
-        MPI_Irecv(
-            buffer,
-            1024,
+        int64_t visit_size = visits.size();
+        vector<int64_t> recv_buffer = vector<int64_t>(g_comm_size);
+        MPI_Allgather(
+            &visit_size,
+            1,
             MPI_INT64_T,
-            source,
-            0,
-            MPI_COMM_WORLD, // Communicator
-            &request
+            &recv_buffer[0],
+            g_comm_size,
+            MPI_INT64_T,
+            MPI_COMM_WORLD
         );
+        
+        MPI_Barrier(MPI_COMM_WORLD);
 
-        int i=0;
-        while(buffer[i] != -1)
-        {
-            visited[buffer[i]] = true;
-        }
+
+
+        for (auto i = recv_buffer.begin(); i != recv_buffer.end(); ++i)
+                std::cout << *i << ' ';
+        MPI_Barrier(MPI_COMM_WORLD);
     }
-    MPI_Barrier(MPI_COMM_WORLD);
+    tmp = q_work;
+    q_buffer = q_work;
+    q_work = tmp;
 }
 
 void master(int64_t root, int64_t* pred)
