@@ -1,5 +1,4 @@
 #include "bfs.h"
-#include "graph500_macros.h"
 #include <iostream>
 #include <string.h>
 #include <vector>
