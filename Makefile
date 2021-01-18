@@ -16,8 +16,8 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 # Flags
 OPTIMIZE = -O3
 CFLAGS 	+= $(INC_FLAGS) -MMD -MP -g -Drestrict=__restrict__ $(OPTIMIZE) -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml
-CPPFLAGS += $(INC_FLAGS) -MMD -MP -g -Drestrict=__restrict__ $(OPTIMIZE) -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml
-LDFLAGS += -lm -lpthread -lstdc++
+CPPFLAGS += $(INC_FLAGS) -MMD -MP -g -Drestrict=__restrict__ $(OPTIMIZE) -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml -fopenmp
+LDFLAGS += -lm -lpthread -lstdc++ -fopenmp
 
 # Compilers
 CC = mpicc
@@ -38,7 +38,7 @@ $(BUILD_DIR)/%.cpp.o: %.cpp
 	$(CXX) $(CPPFLAGS) -c $< -o $@
 
 run:
-	mpirun -np 2 ./build/$(TARGET_EXEC) 18 | grep median_time
+	mpirun -np 4 ./build/$(TARGET_EXEC) 16
 
 .PHONY: clean
 
