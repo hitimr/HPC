@@ -1,3 +1,14 @@
+18.01. Hab  gestern versucht die doublequeue zu implementieren.
+
+leider musste ich am ende so viel vom referenz code übernehmen, dass ich zweifle, dass das durchgehen wird. meine eigene variante zu kreieren hab ich leider nocht nicht geschafft.
+dafür weiß ich jetzt wesentlich mehr über die aml und ich glaube, dass aml doch recht nützlich sein könnte.
+
+
+
+
+
+
+
 15.01.2021: Hab ein neues Makefile erstellt weil das von graph500 furchtbar ist... Das neue ist jetzt auch im root folder (das alte nach wievor in ./src)
 Files für die referenz implementierung und sssp hab ich auch rausgeworfen
 Der cpp Code ist jetzt in bfs.cpp. Ich hab testweise eine Master-Slave kommunikation erstellt. Alle erstellten artefakte sind in ./build.

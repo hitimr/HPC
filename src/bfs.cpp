@@ -135,10 +135,12 @@ void bfs_parallel(int64_t root, int64_t* pred)
         aml_barrier();
 
         swap(q_work, q_buffer);
-        queue_size = (int64_t) q_work->size();
+
+        // check how many elemtens are left in the working queue globally
+        queue_size = (int64_t) q_work->size();  
         MPI_Allreduce(MPI_IN_PLACE, &queue_size, 1, MPI_INT64_T, MPI_SUM,MPI_COMM_WORLD);
     }
-    while(queue_size);    
+    while(queue_size); // repeat as long as there are queue elements left globally
     aml_barrier();
 }
 
