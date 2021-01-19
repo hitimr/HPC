@@ -150,10 +150,27 @@ void bfs_parallel(int64_t root, int64_t* pred)
             // work through pool
             for(int i=0; i < pool.size(); i++)
             {
-                for(int j=0; j < pool[i].size(); j++)
-                {                    
-                    send_visit(pool[i][j], u);
-                }
+                if(i!=my_rank)
+                {
+                    for(int j=0; j < pool[i].size(); j++)
+                    {                    
+                        send_visit(pool[i][j], u);
+                    }
+                } 
+                else 
+                {
+                    for(int j=0; j < pool[i].size(); j++)
+                    {    
+                        int64_t vloc = VERTEX_LOCAL(pool[i][j]);
+                        if (!TEST_VISITEDLOC(vloc))
+                        {                                           
+                            SET_VISITEDLOC(vloc);
+                            q_buffer->push(vloc);
+                            pred_glob[vloc] = VERTEX_TO_GLOBAL(my_rank, u);
+                        }
+                    }
+                }                
+
                 pool[i].clear();
             }
 
