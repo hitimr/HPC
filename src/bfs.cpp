@@ -24,8 +24,11 @@ extern int64_t g_nglobalverts;
 
 unsigned long *visited;
 
-int g_my_rank;
+int g_my_rank;  // TODO remove before release
 int g_comm_size;
+
+int my_rank;
+int comm_size;
 
 // Macros copied from reference implementation to handle the graph data structure
 // since we cant include c headers from graph500 we need to copy those
@@ -64,6 +67,7 @@ typedef struct visitmsg {
 	int vfrom;
 } visitmsg;
 
+
 //AM-handler for check&visit
 void visithndl(int from,void* data,int sz) {
 	visitmsg *m = (visitmsg*) data;
@@ -75,10 +79,21 @@ void visithndl(int from,void* data,int sz) {
 	}
 }
 
+void process_pool_hndl(int from,void* data,int sz)
+{
+
+}
+
 inline void send_visit(int64_t glob, int from) 
 {
 	visitmsg m = { VERTEX_LOCAL(glob), from };
 	aml_send(&m, 1, sizeof(visitmsg), VERTEX_OWNER(glob));
+}
+
+inline void send_pool(vector<int64_t> & data, int dest)
+{
+    int64_t msg = data.size();
+    aml_send(&msg, 1, sizeof(msg), dest);
 }
 
 
@@ -97,7 +112,6 @@ void bfs_parallel(int64_t root, int64_t* pred)
 {
     int64_t v;
     int64_t queue_size;
-    int rank;
 
     q_work =    new queue<int64_t>();    
     q_buffer =  new queue<int64_t>();
@@ -105,13 +119,12 @@ void bfs_parallel(int64_t root, int64_t* pred)
     
 	aml_register_handler(visithndl,1);
     CLEAN_VISITED()
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
-    int dest, source;
-    if(rank == 0) {dest=1; source=0;}
-    else {dest=0; source=1;}
+    vector<vector<int64_t>> pool(comm_size);
 
-	if(VERTEX_OWNER(root) == rank) 
+	if(VERTEX_OWNER(root) == my_rank) 
     {
 		pred[VERTEX_LOCAL(root)] = root;
 		SET_VISITED(root);
@@ -128,8 +141,23 @@ void bfs_parallel(int64_t root, int64_t* pred)
             // traverse column of adjecency matrix of vertex u
             for(int64_t j = rowstarts[u]; j < rowstarts[u+1]; j++)
             {
-                send_visit(COLUMN(j), u);
+                int64_t vertex = COLUMN(j);
+                int owner = VERTEX_OWNER(vertex);
+                pool[owner].push_back(vertex);
+                //send_visit(COLUMN(j), u);
             }
+
+            // work through pool
+            for(int i=0; i < pool.size(); i++)
+            {
+                for(int j=0; j < pool[i].size(); j++)
+                {                    
+                    send_visit(pool[i][j], u);
+                }
+                pool[i].clear();
+            }
+
+
         }
         aml_barrier();
 
@@ -255,40 +283,4 @@ void bfs_serial(int64_t root, int64_t* pred)
         }
     }
     return;
-}
-
-
-
-void test_mpi()
-{
-    int rank;
-	int size;
-	int length;
-	char name[80];
-
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	MPI_Comm_size(MPI_COMM_WORLD, &size);
-	MPI_Get_processor_name(name, &length);
-
-	int buffer_len = 150;
-	char buffer[buffer_len];
-
-	if (rank == 0)
-	{
-		// Only print from rank 0
-        cout << "\n\n---------------------\n";
-        cout << "Messages gathered by master:" << endl;
-		for (int i = 1; i < size; i++)
-		{
-			MPI_Recv(buffer, buffer_len, MPI_CHAR, i, i, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            cout << buffer << endl;
-		}
-        cout << "\nEverything recieved" << endl;
-        cout << "---------------------\n\n";
-	}
-	else
-	{        
-	    sprintf(buffer, "Greetings, master! I am Rank: %d We are %d cores in total. I am running on Machine %s", rank, size, name);
-		MPI_Send(buffer, buffer_len, MPI_CHAR, 0, rank, MPI_COMM_WORLD);
-	}
 }
