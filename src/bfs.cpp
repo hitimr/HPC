@@ -2,7 +2,9 @@
 #include <iostream>
 #include <string.h>
 #include <vector>
+#include <list>
 #include <queue>
+#include <limits.h>
 #include <mpi.h>
 #include <algorithm>
 #include "../aml/aml.h"
@@ -58,9 +60,13 @@ int comm_size;
 #define TEST_VISITEDLOC(v) ((visited[(v) ulong_shift] & (1ULL << ((v) ulong_mask))) != 0)
 #define CLEAN_VISITED()  memset(visited,0,visited_size*sizeof(unsigned long));
 
-
-
 using namespace std;
+
+inline bool test_visited_empty(int64_t v) { return visited[(v) ulong_shift] ? TEST_VISITEDLOC(v) : false; }
+inline bool test_visited_mixed(int64_t v) { return TEST_VISITEDLOC(v); }
+inline bool test_visited_full(int64_t v) { return !visited[(v) ulong_shift] ? TEST_VISITEDLOC(v) : false; }
+
+
 
 queue<int64_t>* q_work;    
 queue<int64_t>* q_buffer;
@@ -125,6 +131,8 @@ void bfs_parallel(int64_t root, int64_t* pred)
     q_work =    new queue<int64_t>();    
     q_buffer =  new queue<int64_t>();
 
+    //bool (*test_visisted_fast)(bool) = &
+
     
 	aml_register_handler(visithndl,1);
     CLEAN_VISITED()
@@ -161,17 +169,17 @@ void bfs_parallel(int64_t root, int64_t* pred)
             {
                 if(i != my_rank)
                 {                       
-                    for(int j=0; j < pool[i].size(); j++)
+                    for(auto itr = pool[i].begin(); itr != pool[i].end(); itr++)
                     {                    
-                        send_visit(pool[i][j], u);
+                        send_visit(*itr, u);
                     }
                 } 
                 else 
                 {
-                    for(int j=0; j < pool[i].size(); j++)
+                    for(auto itr = pool[i].begin(); itr != pool[i].end(); itr++)
                     {    
-                        int64_t vloc = VERTEX_LOCAL(pool[i][j]);
-                        if (!TEST_VISITEDLOC(vloc))
+                        int64_t vloc = VERTEX_LOCAL(*itr);
+                        if (!test_visited_empty(vloc))
                         {                                           
                             SET_VISITEDLOC(vloc);
                             q_buffer->push(vloc);
@@ -194,71 +202,6 @@ void bfs_parallel(int64_t root, int64_t* pred)
     while(queue_size); // repeat as long as there are queue elements left globally
     aml_barrier();
 }
-
-void master(int64_t root, int64_t* pred)
-{
-    int64_t u,j,v;
-
-    // Initializing the visited array. the predecessor list is cleared before urn_bfs() is called
-    vector<bool> vis(visited_size*64+1, false);
-    queue<int64_t> q; // Create empty queue
-
-    q.push(root); // Enter the starting vertex into the queue
-    vis[root] = true;
-    pred[root] = root;
-
-    while(!q.empty())
-    {
-        u = q.front();
-        q.pop();
-
-        for(j = rowstarts[u]; j < rowstarts[u+1]; j++)
-        {
-            v = COLUMN(j);
-            if(!vis[v]) 
-            {
-                vis[v] = true;
-                q.push(v);
-                pred_glob[v] = u;
-            }
-        }
-    }
-
-   int64_t ints[2] = {1,2};
-	//MPI_Send(pred,32, MPI_INT64_T,1,0,MPI_COMM_WORLD);
-    MPI_Barrier(MPI_COMM_WORLD);
-    return;
-}
-
-void slave(int64_t root, int64_t* pred)
-{
-    //int64_t* buffer = (int64_t*)malloc(visited_size * 64 * sizeof(int64_t));
-    int tag;
-    int my_rank;
-
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-
-    /*
-    // Wait for new data
-    MPI_Recv(
-        pred,  // Data Buffer
-        g_pred_size,      // length
-        MPI_INT64_T, // Dtype
-        MASTER, // Source
-        TAG_SOLUTION, // Tag
-        MPI_COMM_WORLD, // Communicator
-        MPI_STATUS_IGNORE
-    );  
-    cout << "Recieved somethin" << endl;
-    */
-   
-    for(int i = 0; i<32; i++)
-        cout << "i=" << i << "\t" << pred_glob[i] << endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    return;
-}
-
 
 
 // Serial BFS-Algorithm taken from 
