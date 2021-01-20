@@ -194,11 +194,11 @@ void bfs_parallel(int64_t root, int64_t* pred)
                             pred_glob[vloc] = VERTEX_TO_GLOBAL(my_rank, u);
                         }
                     }
-                    #ifdef USE_TESTVISIT_FAST
-                        n_local_visits += pool[i].size();
-                        if((n_local_visits / (float) g_nlocalverts) > TEST_VISITED_EMPTY_CUTOFF) 
-                            test_visited_fast = &test_visited_mixed;
-                    #endif
+                        #ifdef USE_TESTVISIT_FAST
+                            n_local_visits += pool[i].size();
+                            if((n_local_visits / (float) g_nlocalverts) > TEST_VISITED_EMPTY_CUTOFF) 
+                                test_visited_fast = &test_visited_mixed;
+                        #endif
                 }                
 
                 pool[i].clear();
