@@ -62,10 +62,11 @@ int comm_size;
 
 using namespace std;
 
+#ifdef USE_TESTVISIT_FAST
 inline bool test_visited_empty(int64_t v) { return visited[(v) ulong_shift] ? TEST_VISITEDLOC(v) : false; }
 inline bool test_visited_mixed(int64_t v) { return TEST_VISITEDLOC(v); }
 inline bool test_visited_full(int64_t v) { return visited[(v) ulong_shift] == 0xffffffffffffffff ? true : TEST_VISITEDLOC(v); }
-
+#endif // USE_TESTVISIT_FAST
 
 
 queue<int64_t>* q_work;    
@@ -131,8 +132,6 @@ void bfs_parallel(int64_t root, int64_t* pred)
     q_work =    new queue<int64_t>();    
     q_buffer =  new queue<int64_t>();
 
-    //bool (*test_visisted_fast)(bool) = &
-
     
 	aml_register_handler(visithndl,1);
     CLEAN_VISITED()
@@ -141,7 +140,9 @@ void bfs_parallel(int64_t root, int64_t* pred)
 
     vector<vector<int64_t>> pool(comm_size);
 
+#ifdef USE_TESTVISIT_FAST
     bool (*test_visited_fast)(int64_t) = &test_visited_full;
+#endif
 
 	if(VERTEX_OWNER(root) == my_rank) 
     {
@@ -179,19 +180,25 @@ void bfs_parallel(int64_t root, int64_t* pred)
                 else 
                 {
                     for(auto itr = pool[i].begin(); itr != pool[i].end(); itr++)
-                    {    
-                        int64_t vloc = VERTEX_LOCAL(*itr);
-                        if (!(*test_visited_fast)(vloc))
+                    {  
+                        int64_t vloc = VERTEX_LOCAL(*itr);  
+                         
+                        #ifdef USE_TESTVISIT_FAST
+                            if (!(*test_visited_fast)(vloc))
+                        #else
+                            if(!TEST_VISITEDLOC(vloc))
+                        #endif                         
                         {                                           
                             SET_VISITEDLOC(vloc);
                             q_buffer->push(vloc);
                             pred_glob[vloc] = VERTEX_TO_GLOBAL(my_rank, u);
                         }
                     }
-                    
-                    n_local_visits += pool[i].size();
-                    if((n_local_visits / (float) g_nlocalverts) > 0.1) 
-                        test_visited_fast = &test_visited_mixed;
+                    #ifdef USE_TESTVISIT_FAST
+                        n_local_visits += pool[i].size();
+                        if((n_local_visits / (float) g_nlocalverts) > TEST_VISITED_EMPTY_CUTOFF) 
+                            test_visited_fast = &test_visited_mixed;
+                    #endif
                 }                
 
                 pool[i].clear();
