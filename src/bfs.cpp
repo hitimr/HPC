@@ -182,8 +182,6 @@ void bfs_parallel(int64_t root, int64_t* pred)
 
                 pool[i].clear();
             }
-
-
         }
         aml_barrier();
 
