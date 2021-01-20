@@ -171,7 +171,8 @@ void bfs_parallel(int64_t root, int64_t* pred)
             for(int i=0; i < pool.size(); i++)
             {
                 if(i != my_rank)
-                {                       
+                { 
+                    // TODO: send as batch                      
                     for(auto itr = pool[i].begin(); itr != pool[i].end(); itr++)
                     {                    
                         send_visit(*itr, u);
