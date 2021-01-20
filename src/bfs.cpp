@@ -6,6 +6,11 @@
 #include <mpi.h>
 #include <algorithm>
 #include "../aml/aml.h"
+#include "config.h"
+
+#ifdef USE_OMP
+#include <omp.h>
+#endif
 
 
 struct oned_csr_graph;
@@ -110,6 +115,10 @@ void run_bfs_cpp(int64_t root, int64_t* pred)
 
 void bfs_parallel(int64_t root, int64_t* pred)
 {
+#ifdef USE_OMP
+    omp_set_num_threads(LOCAL_THREAD_CNT);
+#endif
+
     int64_t v;
     int64_t queue_size;
 
@@ -151,7 +160,7 @@ void bfs_parallel(int64_t root, int64_t* pred)
             for(int i=0; i < pool.size(); i++)
             {
                 if(i!=my_rank)
-                {
+                {                       
                     for(int j=0; j < pool[i].size(); j++)
                     {                    
                         send_visit(pool[i][j], u);
@@ -216,19 +225,6 @@ void master(int64_t root, int64_t* pred)
             }
         }
     }
-    /*
-
-    //cout << "Finished calcs" << endl;
-    int dest = 1;
-    MPI_Send(
-        pred,   //buffer
-        g_pred_size, // size
-        MPI_INT64_T, // Dtype
-        dest, // destination
-        TAG_SOLUTION, // Tag
-        MPI_COMM_WORLD // Communicator
-        );
-    */
 
    int64_t ints[2] = {1,2};
 	//MPI_Send(pred,32, MPI_INT64_T,1,0,MPI_COMM_WORLD);
