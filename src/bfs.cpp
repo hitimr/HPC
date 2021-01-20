@@ -64,7 +64,7 @@ using namespace std;
 
 inline bool test_visited_empty(int64_t v) { return visited[(v) ulong_shift] ? TEST_VISITEDLOC(v) : false; }
 inline bool test_visited_mixed(int64_t v) { return TEST_VISITEDLOC(v); }
-inline bool test_visited_full(int64_t v) { return !visited[(v) ulong_shift] ? TEST_VISITEDLOC(v) : false; }
+inline bool test_visited_full(int64_t v) { return visited[(v) ulong_shift] == 0xffffffffffffffff ? true : TEST_VISITEDLOC(v); }
 
 
 
@@ -126,7 +126,7 @@ void bfs_parallel(int64_t root, int64_t* pred)
 #endif
 
     int64_t v;
-    int64_t queue_size;
+    int64_t queue_size, n_local_visits;
 
     q_work =    new queue<int64_t>();    
     q_buffer =  new queue<int64_t>();
@@ -141,6 +141,8 @@ void bfs_parallel(int64_t root, int64_t* pred)
 
     vector<vector<int64_t>> pool(comm_size);
 
+    bool (*test_visited_fast)(int64_t) = &test_visited_full;
+
 	if(VERTEX_OWNER(root) == my_rank) 
     {
 		pred[VERTEX_LOCAL(root)] = root;
@@ -148,6 +150,7 @@ void bfs_parallel(int64_t root, int64_t* pred)
 		q_work->push(VERTEX_LOCAL(root));
 	} 
 
+    n_local_visits = 0;
     do
     {       
         while(!q_work->empty())
@@ -161,7 +164,6 @@ void bfs_parallel(int64_t root, int64_t* pred)
                 int64_t vertex = COLUMN(j);
                 int owner = VERTEX_OWNER(vertex);
                 pool[owner].push_back(vertex);
-                //send_visit(COLUMN(j), u);
             }
 
             // work through pool
@@ -179,13 +181,17 @@ void bfs_parallel(int64_t root, int64_t* pred)
                     for(auto itr = pool[i].begin(); itr != pool[i].end(); itr++)
                     {    
                         int64_t vloc = VERTEX_LOCAL(*itr);
-                        if (!test_visited_empty(vloc))
+                        if (!(*test_visited_fast)(vloc))
                         {                                           
                             SET_VISITEDLOC(vloc);
                             q_buffer->push(vloc);
                             pred_glob[vloc] = VERTEX_TO_GLOBAL(my_rank, u);
                         }
                     }
+                    
+                    n_local_visits += pool[i].size();
+                    if((n_local_visits / (float) g_nlocalverts) > 0.1) 
+                        test_visited_fast = &test_visited_mixed;
                 }                
 
                 pool[i].clear();

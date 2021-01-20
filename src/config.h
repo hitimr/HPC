@@ -3,3 +3,4 @@
 #ifdef USE_OMP
     #define LOCAL_THREAD_CNT 2
 #endif // use OMP
+
