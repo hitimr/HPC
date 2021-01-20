@@ -159,7 +159,7 @@ void bfs_parallel(int64_t root, int64_t* pred)
             // work through pool
             for(int i=0; i < pool.size(); i++)
             {
-                if(i!=my_rank)
+                if(i != my_rank)
                 {                       
                     for(int j=0; j < pool[i].size(); j++)
                     {                    
