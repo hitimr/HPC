@@ -1,6 +1,7 @@
  // uncomment to switch off various optimizations
 #define USE_OMP
 //#define USE_TESTVISIT_FAST
+#define SEND_LOCAL_DATA 
 
 #ifdef USE_OMP
     #define LOCAL_THREAD_CNT 2
