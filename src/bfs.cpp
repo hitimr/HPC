@@ -68,10 +68,14 @@ inline bool test_visited_mixed(int64_t v) { return TEST_VISITEDLOC(v); }
 inline bool test_visited_full(int64_t v) { return visited[(v) ulong_shift] == 0xffffffffffffffff ? true : TEST_VISITEDLOC(v); }
 #endif // USE_TESTVISIT_FAST
 
-#define TAG_HEADER 2
+// TODO: maybe switch to enums
+#define TAG_HEADER      2
+#define TAG_POOLDATA    3
 
 queue<int64_t>* q_work;    
 queue<int64_t>* q_buffer;
+
+MPI_Status status;
 
 
 typedef struct visitmsg {
@@ -82,6 +86,7 @@ typedef struct visitmsg {
 
 typedef struct header_t {
     size_t size;
+    int source;
 } header_t;
 
 
@@ -98,7 +103,34 @@ void visithndl(int from,void* data,int sz) {
 
 void process_pool_hndl(int from, void* data, int sz)
 {
-    header_t *h = (header_t*) data;     
+    header_t* h = (header_t*) data;    
+
+    vector<int64_t> rx_data = vector<int64_t>(h->size);    // Allocate ressources for pool contents
+    
+    
+    MPI_Recv(
+        &rx_data[0],
+        h->size,
+        MPI_INT64_T,
+        h->source,
+        TAG_POOLDATA,
+        MPI_COMM_WORLD,
+        &status
+    );
+
+    
+    cout << "Recieved " << rx_data.size() << endl;
+    for(int i = 0; i < h->size; i++)
+    {        
+        if (!TEST_VISITEDLOC(rx_data[i])) 
+        {
+            //SET_VISITEDLOC(rx_data[i]);
+            //q_buffer->push(rx_data[i]);
+            //pred_glob[rx_data[i]] = VERTEX_TO_GLOBAL(from, rx_data[i]);
+        }
+    }
+    
+    //delete(buffer);
 }
 
 inline void send_visit(int64_t glob, int from) 
@@ -110,11 +142,18 @@ inline void send_visit(int64_t glob, int from)
 inline void send_pool(vector<int64_t> & pool, int dest)
 {
     // Send header containing information about the pool
-    header_t msg = { pool.size() };
+    header_t msg = { pool.size(), my_rank };
     aml_send(&msg, TAG_HEADER, sizeof(msg), dest);
 
     // Send actual data
-    //MPI_Send()
+    MPI_Send(
+        &pool[0],
+        pool.size(),
+        MPI_INT64_T,
+        dest,
+        TAG_POOLDATA,
+        MPI_COMM_WORLD
+    );
 }
 
 
@@ -216,7 +255,7 @@ void bfs_parallel(int64_t root, int64_t* pred)
                         if((n_local_visits / (float) g_nlocalverts) > TEST_VISITED_EMPTY_CUTOFF) 
                             test_visited_fast = &test_visited_mixed;
                     #endif
-                }                
+                }               
 
                 pool[i].clear();
             }

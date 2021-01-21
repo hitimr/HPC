@@ -14,9 +14,10 @@ INC_DIRS := $(shell find $(SRC_DIRS) -type d)
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
 # Flags
-OPTIMIZE = -O3
-CFLAGS 	+= $(INC_FLAGS) -MMD -MP -g -Drestrict=__restrict__ $(OPTIMIZE) -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml
-CPPFLAGS += $(INC_FLAGS) -MMD -MP -g -Drestrict=__restrict__ $(OPTIMIZE) -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml -fopenmp
+OPTIMIZE_C = -O3
+OPTIMIZE_CPP = -O0
+CFLAGS 	+= $(INC_FLAGS) -MMD -MP -g -Drestrict=__restrict__ $(OPTIMIZE_C) -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml
+CPPFLAGS += $(INC_FLAGS) -MMD -MP -g -Drestrict=__restrict__ $(OPTIMIZE_C) -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml -fopenmp
 LDFLAGS += -lm -lpthread -lstdc++ -fopenmp
 
 # Compilers
@@ -38,7 +39,7 @@ $(BUILD_DIR)/%.cpp.o: %.cpp
 	$(CXX) $(CPPFLAGS) -c $< -o $@
 
 run:
-	mpirun -np 4 ./build/$(TARGET_EXEC) 16
+	mpirun -np 2 ./build/$(TARGET_EXEC) 8
 
 .PHONY: clean
 
