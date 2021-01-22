@@ -15,7 +15,7 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
 # Flags
 OPTIMIZE_C = -O3
-OPTIMIZE_CPP = -O0
+OPTIMIZE_CPP = -O3	# TODO: change to -03 before release
 CFLAGS 	+= $(INC_FLAGS) -MMD -MP -g -Drestrict=__restrict__ $(OPTIMIZE_C) -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml
 CPPFLAGS += $(INC_FLAGS) -MMD -MP -g -Drestrict=__restrict__ $(OPTIMIZE_CPP) -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml -fopenmp
 LDFLAGS += -lm -lpthread -lstdc++ -fopenmp
@@ -39,7 +39,7 @@ $(BUILD_DIR)/%.cpp.o: %.cpp
 	$(CXX) $(CPPFLAGS) -c $< -o $@
 
 run:
-	mpirun -np 2 ./build/$(TARGET_EXEC) 10
+	mpirun -np 2 ./build/$(TARGET_EXEC) 14
 
 .PHONY: clean
 

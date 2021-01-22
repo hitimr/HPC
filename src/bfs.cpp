@@ -113,19 +113,31 @@ void visithndl(int from, void* data, int sz)
     }
 }
 
-inline void send_chunk(int64_t* chunk, int64_t chunk_len, int dest, int64_t u)
-{
-
-}
-
 inline void send_pool(vector<int64_t> & pool, int dest, int64_t u) 
-{
-    pool[0] |= (u << U_SHIFT);
+{    
     int64_t chunk_start = 0;
+    int64_t chunk_len;
+    int64_t vertices_remaining = pool.size();
 
-    if(pool.size() < AML_MAX_CHUNK_SIZE)
-        aml_send(&pool[chunk_start], 1, sizeof(int64_t)*pool.size(), dest);    
-	
+    while(vertices_remaining)
+    {
+        if(vertices_remaining <= AML_MAX_CHUNK_SIZE)
+        {
+            // number of vertices is smaller that the maximum chunk size
+            chunk_len = vertices_remaining;  
+            vertices_remaining = 0;   
+        } 
+        else
+        {
+            // remaining number of vertices is bigger than ther maximum chunk size
+            chunk_len = AML_MAX_CHUNK_SIZE;
+            vertices_remaining -= chunk_len;
+        }
+        
+        pool[chunk_start] |= (u << U_SHIFT); 
+        aml_send(&pool[chunk_start], 1, sizeof(int64_t)*chunk_len, dest);
+        chunk_start += chunk_len;
+    }
 }
 
 
