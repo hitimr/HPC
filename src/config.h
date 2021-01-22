@@ -15,4 +15,4 @@
 #define U_SHIFT 32
 #define U_MASK 0xffffffff00000000
 
-#define AML_MAX_CHUNK_SIZE 1000
+#define AML_MAX_CHUNK_SIZE 4095
