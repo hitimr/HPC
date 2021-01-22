@@ -96,8 +96,11 @@ void visithndl(int from, void* data, int sz)
 {
 	int64_t* pool_data = static_cast<int64_t*>(data);
     int size = sz/sizeof(int64_t);
+    
+    int64_t u = (pool_data[0] >> U_SHIFT);  // Extract u from first entry
+    pool_data[0] &= ~(U_MASK);  // clear out u with a mask
 
-    for(int i = 0; i < (size - 1); i++)
+    for(int i = 0; i < size; i++)
     {       
         int64_t vertex = VERTEX_LOCAL(pool_data[i]);
 
@@ -105,16 +108,24 @@ void visithndl(int from, void* data, int sz)
         {
             SET_VISITEDLOC(vertex);
             q_buffer->push(vertex);
-            pred_glob[vertex] = VERTEX_TO_GLOBAL(from, pool_data[size-1]);
+            pred_glob[vertex] = VERTEX_TO_GLOBAL(from, u);
         }
     }
 }
 
+inline void send_chunk(int64_t* chunk, int64_t chunk_len, int dest, int64_t u)
+{
+
+}
+
 inline void send_pool(vector<int64_t> & pool, int dest, int64_t u) 
 {
-    pool.push_back(u);   // hack: just append the u so we can send it as well. TODO: replace with proper message
-	aml_send(&pool[0], 1, sizeof(int64_t)*pool.size(), dest);
-    pool.pop_back();
+    pool[0] |= (u << U_SHIFT);
+    int64_t chunk_start = 0;
+
+    if(pool.size() < AML_MAX_CHUNK_SIZE)
+        aml_send(&pool[chunk_start], 1, sizeof(int64_t)*pool.size(), dest);    
+	
 }
 
 
