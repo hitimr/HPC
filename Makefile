@@ -38,7 +38,7 @@ $(BUILD_DIR)/%.cpp.o: %.cpp
 	$(CXX) $(CPPFLAGS) -c $< -o $@
 
 run:
-	mpirun -np 4 ./build/$(TARGET_EXEC) 16
+	mpirun -np 2 ./build/$(TARGET_EXEC) 12
 
 .PHONY: clean
 
