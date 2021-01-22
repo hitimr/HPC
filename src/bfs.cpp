@@ -233,8 +233,8 @@ void bfs_parallel(int64_t root, int64_t* pred)
                             test_visited_fast = &test_visited_mixed;
                     #endif
                 }               
-
                 pool[i].clear();
+                pool[i].reserve(g_nlocalverts);
             }
         }
         aml_barrier();
