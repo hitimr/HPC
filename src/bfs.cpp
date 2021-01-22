@@ -92,14 +92,30 @@ typedef struct header_t {
 
 
 //AM-handler for check&visit
-void visithndl(int from,void* data,int sz) {
-	visitmsg *m = (visitmsg*) data;
+void visithndl(int from, void* data, int sz) 
+{
+	int64_t* pool_data = static_cast<int64_t*>(data);
+    int size = sz/sizeof(int64_t);
+
+    for(int i = 0; i < size - 1; i++)
+    {       
+        cout << "Node: " <<  pool_data[i] << endl;
+        if (!TEST_VISITEDLOC(pool_data[i])) 
+        {
+            SET_VISITEDLOC(pool_data[i]);
+            q_buffer->push(pool_data[i]);
+            pred_glob[pool_data[i]] = VERTEX_TO_GLOBAL(from, pool_data[size]);
+        }
+    }
+
+    /*
 	if (!TEST_VISITEDLOC(m->vloc)) 
     {
 		SET_VISITEDLOC(m->vloc);
 		q_buffer->push(m->vloc);
 		pred_glob[m->vloc] = VERTEX_TO_GLOBAL(from, m->vfrom);
 	}
+    */
 }
 
 void process_pool_hndl(int from, void* data, int sz)
@@ -134,10 +150,11 @@ void process_pool_hndl(int from, void* data, int sz)
     //delete(buffer);
 }
 
-inline void send_visit(int64_t glob, int from) 
+inline void send_visit(vector<int64_t> & pool, int dest, int64_t u) 
 {
-	visitmsg m = { VERTEX_LOCAL(glob), from };
-	aml_send(&m, 1, sizeof(visitmsg), VERTEX_OWNER(glob));
+    pool.push_back(u);   // hack: just append the u so we can send it as well. TODO: replace with proper message
+	aml_send(&pool[0], 1, sizeof(int64_t)*pool.size(), dest);
+    pool.pop_back();
 }
 
 inline void send_pool(vector<int64_t> & pool, int dest)
@@ -181,7 +198,7 @@ void bfs_parallel(int64_t root, int64_t* pred)
 
     
 	aml_register_handler(visithndl,1);  // TODO: remove before release
-    aml_register_handler(process_pool_hndl,2);
+    //aml_register_handler(process_pool_hndl,2);
     CLEAN_VISITED()
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
@@ -223,15 +240,9 @@ void bfs_parallel(int64_t root, int64_t* pred)
                 #else
                     if(i != my_rank)    // Only senmd non-local vertices
                 #endif
-                { 
-                    // TODO: send as batch                      
-                    for(auto itr = pool[i].begin(); itr != pool[i].end(); itr++)
-                    {                    
-                        send_visit(*itr, u);
-                    }
-
+                {        
                     if(pool[i].size() > 0)  // only send if there is something in the pool
-                        send_pool(pool[i], i);
+                        send_visit(pool[i], i, u);
                 } 
                 else 
                 {
