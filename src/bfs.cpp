@@ -110,62 +110,12 @@ void visithndl(int from, void* data, int sz)
     }
 }
 
-void process_pool_hndl(int from, void* data, int sz)
-{
-    header_t* h = (header_t*) data;    
-
-    vector<int64_t> rx_data = vector<int64_t>(h->size);    // Allocate ressources for pool contents
-    
-    
-    MPI_Recv(
-        &rx_data[0],
-        h->size,
-        MPI_INT64_T,
-        h->source,
-        TAG_POOLDATA,
-        MPI_COMM_WORLD,
-        &status
-    );
-
-    
-    cout << "Recieved " << rx_data.size() << endl;
-    for(int i = 0; i < h->size; i++)
-    {        
-        if (!TEST_VISITEDLOC(rx_data[i])) 
-        {
-            //SET_VISITEDLOC(rx_data[i]);
-            //q_buffer->push(rx_data[i]);
-            //pred_glob[rx_data[i]] = VERTEX_TO_GLOBAL(from, rx_data[i]);
-        }
-    }
-    
-    //delete(buffer);
-}
-
-inline void send_visit(vector<int64_t> & pool, int dest, int64_t u) 
+inline void send_pool(vector<int64_t> & pool, int dest, int64_t u) 
 {
     pool.push_back(u);   // hack: just append the u so we can send it as well. TODO: replace with proper message
 	aml_send(&pool[0], 1, sizeof(int64_t)*pool.size(), dest);
     pool.pop_back();
 }
-
-inline void send_pool(vector<int64_t> & pool, int dest)
-{
-    // Send header containing information about the pool
-    header_t msg = { pool.size(), my_rank };
-    aml_send(&msg, TAG_HEADER, sizeof(msg), dest);
-
-    // Send actual data
-    MPI_Send(
-        &pool[0],
-        pool.size(),
-        MPI_INT64_T,
-        dest,
-        TAG_POOLDATA,
-        MPI_COMM_WORLD
-    );
-}
-
 
 
 void run_bfs_cpp(int64_t root, int64_t* pred)
@@ -234,7 +184,7 @@ void bfs_parallel(int64_t root, int64_t* pred)
                 #endif
                 {        
                     if(pool[i].size() > 0)  // only send if there is something in the pool
-                        send_visit(pool[i], i, u);
+                        send_pool(pool[i], i, u);
                 } 
                 else 
                 {
