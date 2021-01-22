@@ -97,25 +97,17 @@ void visithndl(int from, void* data, int sz)
 	int64_t* pool_data = static_cast<int64_t*>(data);
     int size = sz/sizeof(int64_t);
 
-    for(int i = 0; i < size - 1; i++)
+    for(int i = 0; i < (size - 1); i++)
     {       
-        cout << "Node: " <<  pool_data[i] << endl;
-        if (!TEST_VISITEDLOC(pool_data[i])) 
+        int64_t vertex = VERTEX_LOCAL(pool_data[i]);
+
+        if (!TEST_VISITEDLOC(vertex)) 
         {
-            SET_VISITEDLOC(pool_data[i]);
-            q_buffer->push(pool_data[i]);
-            pred_glob[pool_data[i]] = VERTEX_TO_GLOBAL(from, pool_data[size]);
+            SET_VISITEDLOC(vertex);
+            q_buffer->push(vertex);
+            pred_glob[vertex] = VERTEX_TO_GLOBAL(from, pool_data[size-1]);
         }
     }
-
-    /*
-	if (!TEST_VISITEDLOC(m->vloc)) 
-    {
-		SET_VISITEDLOC(m->vloc);
-		q_buffer->push(m->vloc);
-		pred_glob[m->vloc] = VERTEX_TO_GLOBAL(from, m->vfrom);
-	}
-    */
 }
 
 void process_pool_hndl(int from, void* data, int sz)
