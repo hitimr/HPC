@@ -100,6 +100,7 @@ void visithndl(int from, void* data, int sz)
     int64_t u = (pool_data[0] >> U_SHIFT);  // Extract u from first entry
     pool_data[0] &= ~(U_MASK);  // clear out u with a mask
 
+    #pragma omp simd
     for(int i = 0; i < size; i++)
     {       
         int64_t vertex = VERTEX_LOCAL(pool_data[i]);
@@ -190,6 +191,7 @@ void bfs_parallel(int64_t root, int64_t* pred)
             q_work->pop();
 
             // traverse column of adjecency matrix of vertex u
+            #pragma omp simd
             for(int64_t j = rowstarts[u]; j < rowstarts[u+1]; j++)
             {
                 int64_t vertex = COLUMN(j);
