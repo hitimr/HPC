@@ -9,6 +9,7 @@
 #include <algorithm>
 #include "../aml/aml.h"
 #include "config.h"
+#include "pool.h"
 
 #ifdef USE_OMP
 #include <omp.h>
