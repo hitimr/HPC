@@ -148,9 +148,14 @@ inline void send_pool(vector<int64_t> & pool, int dest, int64_t u)
 void run_bfs_cpp(int64_t root, int64_t* pred)
 {
     pred_glob=pred;
-    //bfs_serial(root, pred);
 
-    bfs_parallel(root, pred);
+    // uncomment respective function to switch between parallel and serial implementation
+    #ifdef BFS_PARALLEL
+        bfs_parallel(root, pred);
+    #else
+        bfs_serial(root, pred);
+    #endif
+    
 }
 
 void bfs_parallel(int64_t root, int64_t* pred)
