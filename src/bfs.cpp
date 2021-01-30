@@ -91,7 +91,7 @@ typedef struct header_t {
 
 
 //AM-handler for check&visit
-void visithndl(int from, void* data, int sz) 
+void analyze_pool(int from, void* data, int sz) 
 {
 	int64_t* pool_data = static_cast<int64_t*>(data);
     int size = sz/sizeof(int64_t);
@@ -160,24 +160,25 @@ void run_bfs_cpp(int64_t root, int64_t* pred)
 
 void bfs_parallel(int64_t root, int64_t* pred)
 {
-    int64_t v;
     int64_t queue_size, n_local_visits;
 
     q_work =    new queue<int64_t>();    
     q_buffer =  new queue<int64_t>();
+    CLEAN_VISITED() // Set everything in the bit array to 0
 
     #ifdef USE_TESTVISIT_FAST
         test_visited_fast= &test_visited_empty;
     #endif
 
     
-	aml_register_handler(visithndl, TAG_POOLDATA);  // TODO: remove before release
-    
-    CLEAN_VISITED()
+	aml_register_handler(analyze_pool, TAG_POOLDATA);  // TODO: remove before release  
+
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
-    vector<vector<int64_t>> pool(comm_size);
+    vector<vector<int64_t>> pool(comm_size);   
+    for(int i = 0; i < comm_size; i++)
+        pool[i].reserve(g_nlocalverts); // reserve space for the vector so it does not "grow"
 
 	if(VERTEX_OWNER(root) == my_rank) 
     {
@@ -198,9 +199,9 @@ void bfs_parallel(int64_t root, int64_t* pred)
             #pragma omp simd
             for(int64_t j = rowstarts[u]; j < rowstarts[u+1]; j++)
             {
-                int64_t vertex = COLUMN(j);
-                int owner = VERTEX_OWNER(vertex);
-                pool[owner].push_back(vertex);
+                int64_t vertex = COLUMN(j); // Extract vertex from CSR column
+                int owner = VERTEX_OWNER(vertex);   // calculate the responsible thread of the vertex
+                pool[owner].push_back(vertex);  // add it to the respective pool
             }
 
             // work through pool
@@ -209,7 +210,7 @@ void bfs_parallel(int64_t root, int64_t* pred)
                 #ifdef DO_NOT_SEND_LOCAL_DATA
                     if(i != my_rank)    // Only senmd non-local vertices
                 #else                    
-                    if(true)    // Always send local verices via AML/MPI
+                    if(true)    // Always send local vertices via AML/MPI
                 #endif
                 {        
                     if(pool[i].size() > 0)  // only send if there is something in the pool
@@ -242,7 +243,7 @@ void bfs_parallel(int64_t root, int64_t* pred)
                 #endif   
 
                 pool[i].clear();
-                pool[i].reserve(g_nlocalverts);
+                pool[i].reserve(g_nlocalverts); // manually set the growth strategy of the vector
             }
         }
         aml_barrier();
@@ -253,7 +254,7 @@ void bfs_parallel(int64_t root, int64_t* pred)
         queue_size = (int64_t) q_work->size();  
         MPI_Allreduce(MPI_IN_PLACE, &queue_size, 1, MPI_INT64_T, MPI_SUM,MPI_COMM_WORLD);
     }
-    while(queue_size); // repeat as long as there are queue elements left globally
+    while(queue_size);  // reserve space for the vector so it does not "grow"
     aml_barrier();
 }
 
