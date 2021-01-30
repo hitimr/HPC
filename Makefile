@@ -14,10 +14,11 @@ INC_DIRS := $(shell find $(SRC_DIRS) -type d)
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
 # Flags
-OPTIMIZE = -O3
-CFLAGS 	+= $(INC_FLAGS) -MMD -MP -g -Drestrict=__restrict__ $(OPTIMIZE) -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml
-CPPFLAGS += $(INC_FLAGS) -MMD -MP -g -Drestrict=__restrict__ $(OPTIMIZE) -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml -fopenmp
-LDFLAGS += -lm -lpthread -lstdc++ -fopenmp
+OPTIMIZE_C = -O3
+OPTIMIZE_CPP = -O3	# TODO: change to -03 before release
+CFLAGS 	+= $(INC_FLAGS) -MMD -MP -Drestrict=__restrict__ $(OPTIMIZE_C) -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml -ffast-math -march=native
+CPPFLAGS += $(INC_FLAGS) -MMD -MP -Drestrict=__restrict__ $(OPTIMIZE_CPP) -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml -fopenmp -ffast-math -march=native
+LDFLAGS += -lm -lpthread -lstdc++ -fopenmp -march=native
 
 # Compilers
 CC = mpicc
@@ -38,7 +39,11 @@ $(BUILD_DIR)/%.cpp.o: %.cpp
 	$(CXX) $(CPPFLAGS) -c $< -o $@
 
 run:
+<<<<<<< HEAD
 	mpirun -np 2 ./build/$(TARGET_EXEC) 12
+=======
+	mpirun -np 2 ./build/$(TARGET_EXEC) 18
+>>>>>>> release_candidate
 
 .PHONY: clean
 

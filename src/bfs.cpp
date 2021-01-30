@@ -2,10 +2,18 @@
 #include <iostream>
 #include <string.h>
 #include <vector>
+#include <list>
 #include <queue>
+#include <limits.h>
 #include <mpi.h>
 #include <algorithm>
 #include "../aml/aml.h"
+#include "config.h"
+#include "pool.h"
+
+#ifdef USE_OMP
+#include <omp.h>
+#endif
 
 
 struct oned_csr_graph;
@@ -18,14 +26,16 @@ extern int64_t *pred_glob;
 extern int lgsize;
 
 // custom globals
-extern int64_t g_pred_size; // TODO: remove before release
 extern int64_t g_nlocalverts;
 extern int64_t g_nglobalverts;
 
 unsigned long *visited;
 
-int g_my_rank;
+int g_my_rank;  // TODO remove before release
 int g_comm_size;
+
+int my_rank;
+int comm_size;
 
 // Macros copied from reference implementation to handle the graph data structure
 // since we cant include c headers from graph500 we need to copy those
@@ -50,75 +60,126 @@ int g_comm_size;
 #define TEST_VISITEDLOC(v) ((visited[(v) ulong_shift] & (1ULL << ((v) ulong_mask))) != 0)
 #define CLEAN_VISITED()  memset(visited,0,visited_size*sizeof(unsigned long));
 
-
-
 using namespace std;
+
+#ifdef USE_TESTVISIT_FAST
+inline bool test_visited_empty(int64_t v) { return visited[(v) ulong_shift] ? TEST_VISITEDLOC(v) : false; }
+inline bool test_visited_mixed(int64_t v) { return TEST_VISITEDLOC(v); }
+inline bool test_visited_full(int64_t v) { return visited[(v) ulong_shift] == 0xffffffffffffffff ? true : TEST_VISITEDLOC(v); }
+bool (*test_visited_fast)(int64_t);
+
+#endif // USE_TESTVISIT_FAST
+
 
 queue<int64_t>* q_work;    
 queue<int64_t>* q_buffer;
 
+inline void send_pool(vector<int64_t> & pool, int dest, int64_t u) 
+{    
+    int64_t chunk_start = 0;
+    int64_t chunk_len;
+    int64_t vertices_remaining = pool.size();
 
-typedef struct visitmsg {
-	//both vertexes are VERTEX_LOCAL components as we know src and dest PEs to reconstruct VERTEX_GLOBAL
-	int vloc;
-	int vfrom;
-} visitmsg;
-
-//AM-handler for check&visit
-void visithndl(int from,void* data,int sz) {
-	visitmsg *m = (visitmsg*) data;
-	if (!TEST_VISITEDLOC(m->vloc)) 
+    // Since AML has a hardcoded limit on its bufffer size we need to split up
+    // the data so it does not exeed this limit
+    while(vertices_remaining)
     {
-		SET_VISITEDLOC(m->vloc);
-		q_buffer->push(m->vloc);
-		pred_glob[m->vloc] = VERTEX_TO_GLOBAL(from, m->vfrom);
-	}
+        if(vertices_remaining <= AML_MAX_CHUNK_SIZE)
+        {
+            // number of vertices is smaller that the maximum chunk size
+            chunk_len = vertices_remaining;  
+            vertices_remaining = 0;   
+        } 
+        else
+        {
+            // remaining number of vertices is bigger than ther maximum chunk size
+            // we can only send a part of the data
+            chunk_len = AML_MAX_CHUNK_SIZE;
+            vertices_remaining -= chunk_len;
+        }
+        
+        // AML works best if we can send a sequential line of data. Unfortunately
+        // we need to send the predecessor vertex from the queue as well with 
+        // every call of aml_send().Since we only need SCALE bits to address every
+        // vertex and SCALE <32 for the forseeable future we can just encode it 
+        // into the first vertex' 8 most significat bytes
+        pool[chunk_start] |= (u << U_SHIFT); 
+        aml_send(&pool[chunk_start], TAG_POOLDATA, sizeof(int64_t)*chunk_len, dest);
+        chunk_start += chunk_len;
+    }
 }
 
-inline void send_visit(int64_t glob, int from) 
+void analyze_pool(int from, void* data, int sz) 
 {
-	visitmsg m = { VERTEX_LOCAL(glob), from };
-	aml_send(&m, 1, sizeof(visitmsg), VERTEX_OWNER(glob));
+	int64_t* pool_data = static_cast<int64_t*>(data);   // cast data to proper type
+    int size = sz/sizeof(int64_t);  // calculate transmission size
+    
+    int64_t u = (pool_data[0] >> U_SHIFT);  // Extract u from first entry
+    pool_data[0] &= ~(U_MASK);  // clear out u with a mask
+
+    // Check visited array and add unvisited vertices to buffer
+    #pragma omp simd
+    for(int i = 0; i < size; i++)
+    {       
+        int64_t vertex = VERTEX_LOCAL(pool_data[i]);
+
+        #ifdef USE_TESTVISIT_FAST
+            if (!(*test_visited_fast)(vertex))    // "faster" bit test function
+        #else
+            if(!TEST_VISITEDLOC(vertex))  // reference macro
+        #endif                         
+        {
+            SET_VISITEDLOC(vertex);
+            q_buffer->push(vertex);
+            pred_glob[vertex] = VERTEX_TO_GLOBAL(from, u);
+        }
+    }
 }
-
-
 
 void run_bfs_cpp(int64_t root, int64_t* pred)
 {
     pred_glob=pred;
-    //bfs_serial(root, pred);
-    // TODO: bfs_parallel()
 
-    bfs_parallel(root, pred);
-    //test_mpi();
+    #ifdef BFS_PARALLEL
+        bfs_parallel(root, pred);
+    #else
+        bfs_serial(root, pred);
+    #endif
+    
 }
 
 void bfs_parallel(int64_t root, int64_t* pred)
 {
-    int64_t v;
-    int64_t queue_size;
-    int rank;
+    int64_t queue_size, n_local_visits;
 
     q_work =    new queue<int64_t>();    
     q_buffer =  new queue<int64_t>();
+    CLEAN_VISITED() // Set everything in the bit array to 0
 
+    #ifdef USE_TESTVISIT_FAST
+        test_visited_fast= &test_visited_empty;
+    #endif
     
-	aml_register_handler(visithndl,1);
-    CLEAN_VISITED()
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	aml_register_handler(analyze_pool, TAG_POOLDATA);  // TODO: remove before release  
 
-    int dest, source;
-    if(rank == 0) {dest=1; source=0;}
-    else {dest=0; source=1;}
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
-	if(VERTEX_OWNER(root) == rank) 
+    vector<vector<int64_t>> pool(comm_size);   
+    for(int i = 0; i < comm_size; i++)
+        pool[i].reserve(g_nlocalverts); // reserve space for the vector so it does not "grow"
+
+    // add root to the queue of the responsible rank
+	if(VERTEX_OWNER(root) == my_rank) 
     {
 		pred[VERTEX_LOCAL(root)] = root;
 		SET_VISITED(root);
 		q_work->push(VERTEX_LOCAL(root));
 	} 
 
-    do
+    // BFS algorithm
+    n_local_visits = 0;
+    do // while there are vertices left on any queue
     {       
         while(!q_work->empty())
         {         
@@ -126,9 +187,54 @@ void bfs_parallel(int64_t root, int64_t* pred)
             q_work->pop();
 
             // traverse column of adjecency matrix of vertex u
+            #pragma omp simd
             for(int64_t j = rowstarts[u]; j < rowstarts[u+1]; j++)
             {
-                send_visit(COLUMN(j), u);
+                int64_t vertex = COLUMN(j); // Extract vertex from CSR column
+                int owner = VERTEX_OWNER(vertex);   // calculate the responsible thread of the vertex
+                pool[owner].push_back(vertex);  // add it to the respective pool
+            }
+
+            // work through pool
+            for(int i=0; i < pool.size(); i++)
+            {
+                #ifdef DO_NOT_SEND_LOCAL_DATA
+                    if(i != my_rank)    // Only senmd non-local vertices
+                #else                    
+                    if(true)    // Always send local vertices via AML/MPI
+                #endif
+                {        
+                    if(pool[i].size() > 0)  // only send if there is something in the pool
+                        send_pool(pool[i], i, u);
+                } 
+                else 
+                {
+                    for(auto itr = pool[i].begin(); itr != pool[i].end(); itr++)
+                    {  
+                        int64_t vloc = VERTEX_LOCAL(*itr);  
+                         
+                        #ifdef USE_TESTVISIT_FAST
+                            if (!(*test_visited_fast)(vloc))    // "faster" bit test function
+                        #else
+                            if(!TEST_VISITEDLOC(vloc))  // reference macro
+                        #endif                         
+                        {                                           
+                            SET_VISITEDLOC(vloc);
+                            q_buffer->push(vloc);
+                            pred_glob[vloc] = VERTEX_TO_GLOBAL(my_rank, u);
+                        }
+                    }
+
+                }  
+                #ifdef USE_TESTVISIT_FAST
+                    n_local_visits += pool[i].size();
+                    // switch to regular test_visit function once the visited bit-array has more than TEST_VISITED_EMPTY_CUTOFF high bits
+                    if((n_local_visits / (float) g_nlocalverts) > TEST_VISITED_EMPTY_CUTOFF) 
+                        test_visited_fast = &test_visited_mixed;
+                #endif   
+
+                pool[i].clear();
+                pool[i].reserve(g_nlocalverts); // manually set the growth strategy of the vector
             }
         }
         aml_barrier();
@@ -139,87 +245,9 @@ void bfs_parallel(int64_t root, int64_t* pred)
         queue_size = (int64_t) q_work->size();  
         MPI_Allreduce(MPI_IN_PLACE, &queue_size, 1, MPI_INT64_T, MPI_SUM,MPI_COMM_WORLD);
     }
-    while(queue_size); // repeat as long as there are queue elements left globally
+    while(queue_size);  // reserve space for the vector so it does not "grow"
     aml_barrier();
 }
-
-void master(int64_t root, int64_t* pred)
-{
-    int64_t u,j,v;
-
-    // Initializing the visited array. the predecessor list is cleared before urn_bfs() is called
-    vector<bool> vis(visited_size*64+1, false);
-    queue<int64_t> q; // Create empty queue
-
-    q.push(root); // Enter the starting vertex into the queue
-    vis[root] = true;
-    pred[root] = root;
-
-    while(!q.empty())
-    {
-        u = q.front();
-        q.pop();
-
-        for(j = rowstarts[u]; j < rowstarts[u+1]; j++)
-        {
-            v = COLUMN(j);
-            if(!vis[v]) 
-            {
-                vis[v] = true;
-                q.push(v);
-                pred_glob[v] = u;
-            }
-        }
-    }
-    /*
-
-    //cout << "Finished calcs" << endl;
-    int dest = 1;
-    MPI_Send(
-        pred,   //buffer
-        g_pred_size, // size
-        MPI_INT64_T, // Dtype
-        dest, // destination
-        TAG_SOLUTION, // Tag
-        MPI_COMM_WORLD // Communicator
-        );
-    */
-
-   int64_t ints[2] = {1,2};
-	//MPI_Send(pred,32, MPI_INT64_T,1,0,MPI_COMM_WORLD);
-    MPI_Barrier(MPI_COMM_WORLD);
-    return;
-}
-
-void slave(int64_t root, int64_t* pred)
-{
-    //int64_t* buffer = (int64_t*)malloc(visited_size * 64 * sizeof(int64_t));
-    int tag;
-    int my_rank;
-
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-
-    /*
-    // Wait for new data
-    MPI_Recv(
-        pred,  // Data Buffer
-        g_pred_size,      // length
-        MPI_INT64_T, // Dtype
-        MASTER, // Source
-        TAG_SOLUTION, // Tag
-        MPI_COMM_WORLD, // Communicator
-        MPI_STATUS_IGNORE
-    );  
-    cout << "Recieved somethin" << endl;
-    */
-   
-    for(int i = 0; i<32; i++)
-        cout << "i=" << i << "\t" << pred_glob[i] << endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    return;
-}
-
 
 
 // Serial BFS-Algorithm taken from 
@@ -255,40 +283,4 @@ void bfs_serial(int64_t root, int64_t* pred)
         }
     }
     return;
-}
-
-
-
-void test_mpi()
-{
-    int rank;
-	int size;
-	int length;
-	char name[80];
-
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	MPI_Comm_size(MPI_COMM_WORLD, &size);
-	MPI_Get_processor_name(name, &length);
-
-	int buffer_len = 150;
-	char buffer[buffer_len];
-
-	if (rank == 0)
-	{
-		// Only print from rank 0
-        cout << "\n\n---------------------\n";
-        cout << "Messages gathered by master:" << endl;
-		for (int i = 1; i < size; i++)
-		{
-			MPI_Recv(buffer, buffer_len, MPI_CHAR, i, i, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            cout << buffer << endl;
-		}
-        cout << "\nEverything recieved" << endl;
-        cout << "---------------------\n\n";
-	}
-	else
-	{        
-	    sprintf(buffer, "Greetings, master! I am Rank: %d We are %d cores in total. I am running on Machine %s", rank, size, name);
-		MPI_Send(buffer, buffer_len, MPI_CHAR, 0, rank, MPI_COMM_WORLD);
-	}
 }

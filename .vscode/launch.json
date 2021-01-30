@@ -26,7 +26,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/bfs",
-            "args": ["6"],
+            "args": ["16"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
