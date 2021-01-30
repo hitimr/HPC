@@ -206,10 +206,10 @@ void bfs_parallel(int64_t root, int64_t* pred)
             // work through pool
             for(int i=0; i < pool.size(); i++)
             {
-                #ifdef SEND_LOCAL_DATA
-                    if(true)    // Always send local verices via AML/MPI
-                #else
+                #ifdef DO_NOT_SEND_LOCAL_DATA
                     if(i != my_rank)    // Only senmd non-local vertices
+                #else                    
+                    if(true)    // Always send local verices via AML/MPI
                 #endif
                 {        
                     if(pool[i].size() > 0)  // only send if there is something in the pool
