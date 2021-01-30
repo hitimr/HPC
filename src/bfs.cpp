@@ -69,9 +69,6 @@ inline bool test_visited_mixed(int64_t v) { return TEST_VISITEDLOC(v); }
 inline bool test_visited_full(int64_t v) { return visited[(v) ulong_shift] == 0xffffffffffffffff ? true : TEST_VISITEDLOC(v); }
 #endif // USE_TESTVISIT_FAST
 
-// TODO: maybe switch to enums
-#define TAG_HEADER      2
-#define TAG_POOLDATA    1
 
 queue<int64_t>* q_work;    
 queue<int64_t>* q_buffer;
