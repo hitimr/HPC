@@ -26,7 +26,6 @@ extern int64_t *pred_glob;
 extern int lgsize;
 
 // custom globals
-extern int64_t g_pred_size; // TODO: remove before release
 extern int64_t g_nlocalverts;
 extern int64_t g_nglobalverts;
 
@@ -75,30 +74,50 @@ bool (*test_visited_fast)(int64_t);
 queue<int64_t>* q_work;    
 queue<int64_t>* q_buffer;
 
-MPI_Status status;
+inline void send_pool(vector<int64_t> & pool, int dest, int64_t u) 
+{    
+    int64_t chunk_start = 0;
+    int64_t chunk_len;
+    int64_t vertices_remaining = pool.size();
 
+    // Since AML has a hardcoded limit on its bufffer size we need to split up
+    // the data so it does not exeed this limit
+    while(vertices_remaining)
+    {
+        if(vertices_remaining <= AML_MAX_CHUNK_SIZE)
+        {
+            // number of vertices is smaller that the maximum chunk size
+            chunk_len = vertices_remaining;  
+            vertices_remaining = 0;   
+        } 
+        else
+        {
+            // remaining number of vertices is bigger than ther maximum chunk size
+            // we can only send a part of the data
+            chunk_len = AML_MAX_CHUNK_SIZE;
+            vertices_remaining -= chunk_len;
+        }
+        
+        // AML works best if we can send a sequential line of data. Unfortunately
+        // we need to send the predecessor vertex from the queue as well with 
+        // every call of aml_send().Since we only need SCALE bits to address every
+        // vertex and SCALE <32 for the forseeable future we can just encode it 
+        // into the first vertex' 8 most significat bytes
+        pool[chunk_start] |= (u << U_SHIFT); 
+        aml_send(&pool[chunk_start], TAG_POOLDATA, sizeof(int64_t)*chunk_len, dest);
+        chunk_start += chunk_len;
+    }
+}
 
-typedef struct visitmsg {
-	//both vertexes are VERTEX_LOCAL components as we know src and dest PEs to reconstruct VERTEX_GLOBAL
-	int vloc;
-	int vfrom;
-} visitmsg;
-
-typedef struct header_t {
-    size_t size;
-    int source;
-} header_t;
-
-
-//AM-handler for check&visit
 void analyze_pool(int from, void* data, int sz) 
 {
-	int64_t* pool_data = static_cast<int64_t*>(data);
-    int size = sz/sizeof(int64_t);
+	int64_t* pool_data = static_cast<int64_t*>(data);   // cast data to proper type
+    int size = sz/sizeof(int64_t);  // calculate transmission size
     
     int64_t u = (pool_data[0] >> U_SHIFT);  // Extract u from first entry
     pool_data[0] &= ~(U_MASK);  // clear out u with a mask
 
+    // Check visited array and add unvisited vertices to buffer
     #pragma omp simd
     for(int i = 0; i < size; i++)
     {       
@@ -117,39 +136,10 @@ void analyze_pool(int from, void* data, int sz)
     }
 }
 
-inline void send_pool(vector<int64_t> & pool, int dest, int64_t u) 
-{    
-    int64_t chunk_start = 0;
-    int64_t chunk_len;
-    int64_t vertices_remaining = pool.size();
-
-    while(vertices_remaining)
-    {
-        if(vertices_remaining <= AML_MAX_CHUNK_SIZE)
-        {
-            // number of vertices is smaller that the maximum chunk size
-            chunk_len = vertices_remaining;  
-            vertices_remaining = 0;   
-        } 
-        else
-        {
-            // remaining number of vertices is bigger than ther maximum chunk size
-            chunk_len = AML_MAX_CHUNK_SIZE;
-            vertices_remaining -= chunk_len;
-        }
-        
-        pool[chunk_start] |= (u << U_SHIFT); 
-        aml_send(&pool[chunk_start], TAG_POOLDATA, sizeof(int64_t)*chunk_len, dest);
-        chunk_start += chunk_len;
-    }
-}
-
-
 void run_bfs_cpp(int64_t root, int64_t* pred)
 {
     pred_glob=pred;
 
-    // uncomment respective function to switch between parallel and serial implementation
     #ifdef BFS_PARALLEL
         bfs_parallel(root, pred);
     #else
@@ -169,7 +159,6 @@ void bfs_parallel(int64_t root, int64_t* pred)
     #ifdef USE_TESTVISIT_FAST
         test_visited_fast= &test_visited_empty;
     #endif
-
     
 	aml_register_handler(analyze_pool, TAG_POOLDATA);  // TODO: remove before release  
 
@@ -180,6 +169,7 @@ void bfs_parallel(int64_t root, int64_t* pred)
     for(int i = 0; i < comm_size; i++)
         pool[i].reserve(g_nlocalverts); // reserve space for the vector so it does not "grow"
 
+    // add root to the queue of the responsible rank
 	if(VERTEX_OWNER(root) == my_rank) 
     {
 		pred[VERTEX_LOCAL(root)] = root;
@@ -187,8 +177,9 @@ void bfs_parallel(int64_t root, int64_t* pred)
 		q_work->push(VERTEX_LOCAL(root));
 	} 
 
+    // BFS algorithm
     n_local_visits = 0;
-    do
+    do // while there are vertices left on any queue
     {       
         while(!q_work->empty())
         {         
