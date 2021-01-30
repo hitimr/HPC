@@ -71,7 +71,7 @@ inline bool test_visited_full(int64_t v) { return visited[(v) ulong_shift] == 0x
 
 // TODO: maybe switch to enums
 #define TAG_HEADER      2
-#define TAG_POOLDATA    3
+#define TAG_POOLDATA    1
 
 queue<int64_t>* q_work;    
 queue<int64_t>* q_buffer;
@@ -136,7 +136,7 @@ inline void send_pool(vector<int64_t> & pool, int dest, int64_t u)
         }
         
         pool[chunk_start] |= (u << U_SHIFT); 
-        aml_send(&pool[chunk_start], 1, sizeof(int64_t)*chunk_len, dest);
+        aml_send(&pool[chunk_start], TAG_POOLDATA, sizeof(int64_t)*chunk_len, dest);
         chunk_start += chunk_len;
     }
 }
@@ -163,7 +163,7 @@ void bfs_parallel(int64_t root, int64_t* pred)
     q_buffer =  new queue<int64_t>();
 
     
-	aml_register_handler(visithndl,1);  // TODO: remove before release
+	aml_register_handler(visithndl, TAG_POOLDATA);  // TODO: remove before release
     //aml_register_handler(process_pool_hndl,2);
     CLEAN_VISITED()
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
