@@ -67,6 +67,8 @@ using namespace std;
 inline bool test_visited_empty(int64_t v) { return visited[(v) ulong_shift] ? TEST_VISITEDLOC(v) : false; }
 inline bool test_visited_mixed(int64_t v) { return TEST_VISITEDLOC(v); }
 inline bool test_visited_full(int64_t v) { return visited[(v) ulong_shift] == 0xffffffffffffffff ? true : TEST_VISITEDLOC(v); }
+bool (*test_visited_fast)(int64_t);
+
 #endif // USE_TESTVISIT_FAST
 
 
@@ -102,7 +104,11 @@ void visithndl(int from, void* data, int sz)
     {       
         int64_t vertex = VERTEX_LOCAL(pool_data[i]);
 
-        if (!TEST_VISITEDLOC(vertex)) 
+        #ifdef USE_TESTVISIT_FAST
+            if (!(*test_visited_fast)(vertex))    // "faster" bit test function
+        #else
+            if(!TEST_VISITEDLOC(vertex))  // reference macro
+        #endif                         
         {
             SET_VISITEDLOC(vertex);
             q_buffer->push(vertex);
@@ -149,28 +155,24 @@ void run_bfs_cpp(int64_t root, int64_t* pred)
 
 void bfs_parallel(int64_t root, int64_t* pred)
 {
-#ifdef USE_OMP
-    omp_set_num_threads(LOCAL_THREAD_CNT);
-#endif
-
     int64_t v;
     int64_t queue_size, n_local_visits;
 
     q_work =    new queue<int64_t>();    
     q_buffer =  new queue<int64_t>();
 
+    #ifdef USE_TESTVISIT_FAST
+        test_visited_fast= &test_visited_empty;
+    #endif
+
     
 	aml_register_handler(visithndl, TAG_POOLDATA);  // TODO: remove before release
-    //aml_register_handler(process_pool_hndl,2);
+    
     CLEAN_VISITED()
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
     vector<vector<int64_t>> pool(comm_size);
-
-#ifdef USE_TESTVISIT_FAST
-    bool (*test_visited_fast)(int64_t) = &test_visited_full;
-#endif
 
 	if(VERTEX_OWNER(root) == my_rank) 
     {
@@ -225,13 +227,15 @@ void bfs_parallel(int64_t root, int64_t* pred)
                             pred_glob[vloc] = VERTEX_TO_GLOBAL(my_rank, u);
                         }
                     }
-                    #ifdef USE_TESTVISIT_FAST
-                        n_local_visits += pool[i].size();
-                        // switch to regular test_visit function once the visited bit-array has more than TEST_VISITED_EMPTY_CUTOFF high bits
-                        if((n_local_visits / (float) g_nlocalverts) > TEST_VISITED_EMPTY_CUTOFF) 
-                            test_visited_fast = &test_visited_mixed;
-                    #endif
-                }               
+
+                }  
+                #ifdef USE_TESTVISIT_FAST
+                    n_local_visits += pool[i].size();
+                    // switch to regular test_visit function once the visited bit-array has more than TEST_VISITED_EMPTY_CUTOFF high bits
+                    if((n_local_visits / (float) g_nlocalverts) > TEST_VISITED_EMPTY_CUTOFF) 
+                        test_visited_fast = &test_visited_mixed;
+                #endif   
+
                 pool[i].clear();
                 pool[i].reserve(g_nlocalverts);
             }
