@@ -1,4 +1,4 @@
-# Breadth-first search (BFS) project for High Performance Computation for WS2020
+# Breadth-first search (BFS) project for High Performance Computing for WS2020
 
 ## System Requirements
 
