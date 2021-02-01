@@ -1,55 +1,38 @@
-18.01. Hab  gestern versucht die doublequeue zu implementieren.
+# Breadth-first search (BFS) project for High Performance Computation for WS2020
 
-leider musste ich am ende so viel vom referenz code übernehmen, dass ich zweifle, dass das durchgehen wird. meine eigene variante zu kreieren hab ich leider noch nicht geschafft.
-dafür weiß ich jetzt wesentlich mehr über aml und ich glaube, dass aml doch recht nützlich sein könnte.
+## System Requirement
 
+* C/C++ compiler supporting C++11 or later
+* MPI implementation for C and C++
 
-
-
-
-
-
-15.01.2021: Hab ein neues Makefile erstellt weil das von graph500 furchtbar ist... Das neue ist jetzt auch im root folder (das alte nach wievor in ./src)
-Files für die referenz implementierung und sssp hab ich auch rausgeworfen
-Der cpp Code ist jetzt in bfs.cpp. Ich hab testweise eine Master-Slave kommunikation erstellt. Alle erstellten artefakte sind in ./build.
-
-Zum starten im root folder folgende Befehle ausführen:
-
-make
-make run
-
-Zum aufräumen:
-make clean
-
-Debuggen mit VS Code sollte jetzt auch mit cpp funktionieren. Allerdings läuft dabei nur die Master-Instanz
-
-LG Mario
-
-
-
-
-
-
-
-Ich habs jetzt nicht auf einem anderen PC getestet aber kompilieren sollte mit foglenden Befehlen gehen:
-
-    cd src
+## Compiling the project
+To install and build the project:
+    git clone https://github.com/hitimr/HPC
+    cd HPC
     make
 
-make führt dabei auch das program mit einer scale von 18 aus (kann im makefile geändert werden)
-entfernen aller erstellten dateien geht mit "make clean"
+please note that the makefile is in the root dir and note in ./src
 
-Grundsätzlich solltest du auch mit VS Code debuggen können. Dafür den Repo-Ordner (HPC-main) mit VS Code öffnen und F5 drücken.
-Die Parameter mit denen das Programm dann ausgeführt werden stehen in .vscode/launch.json -> args
-Das debuggen von .c files geht immer aber in .cpp funktionieren die breakpoints manchmal einfach nicht. Ich konnte aber noch nicht herausfinden wieso..
+Check if the project works (launch with 2 processes and scale = 18):
 
-Neuen c++ Code einfach in lib.cpp schreiben und neue Funktionen entsprechend in lib.h deklarieren.
-Um auf globale Variablen aus den c-files zugreifen zu können musst du sie erst mit "extern [type] [name]" am anfang von lib.cpp deklarieren.
-Das einbiden von graph500 header files oder structs in cpp code ist momentan leider nicht möglich.
-Falls du doch daten aus einem struct brauchst würde ich dir raten diese in bfs_custom.c -> void run_bfs() auf einen standard-datentyp zurückzuführen und dann als funktionsparameter zu übergeben.
+    make run
 
-LG Mario
 
+Manually launch the binary:
+
+    cd src/build
+    ./bfs [SCALE] [EDGEFACTOR]
+
+
+Clean environment
+
+    make clean
+
+
+When compiling on the hydra cluster please make sure that the correct MPI module is loaded as some do not support C++.
+We tested all our code with openmpi 3.1.3
+
+    module load mpi/openmpi-3.1.3-slurm
 
 
 
