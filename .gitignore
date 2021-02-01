@@ -4,3 +4,4 @@ src/graph500_*
 *.d
 build/
 .vscode/c_cpp_properties.json
+.vscode
