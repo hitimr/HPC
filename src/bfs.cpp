@@ -160,7 +160,7 @@ void bfs_parallel(int64_t root, int64_t* pred)
         test_visited_fast= &test_visited_empty;
     #endif
     
-	aml_register_handler(analyze_pool, TAG_POOLDATA);  // TODO: remove before release  
+	aml_register_handler(analyze_pool, TAG_POOLDATA);
 
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
@@ -190,7 +190,7 @@ void bfs_parallel(int64_t root, int64_t* pred)
             #pragma omp simd
             for(int64_t j = rowstarts[u]; j < rowstarts[u+1]; j++)
             {
-                int64_t vertex = COLUMN(j); // Extract vertex from CSR column
+                int64_t vertex = COLUMN(j); // Extract vertex from CSR row
                 int owner = VERTEX_OWNER(vertex);   // calculate the responsible thread of the vertex
                 pool[owner].push_back(vertex);  // add it to the respective pool
             }
