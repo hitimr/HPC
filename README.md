@@ -1,12 +1,14 @@
 # Breadth-first search (BFS) project for High Performance Computation for WS2020
 
-## System Requirement
+## System Requirements
 
 * C/C++ compiler supporting C++11 or later
 * MPI implementation for C and C++
 
 ## Compiling the project
+
 To install and build the project:
+
     git clone https://github.com/hitimr/HPC
     cd HPC
     make
