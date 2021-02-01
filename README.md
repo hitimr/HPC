@@ -7,6 +7,12 @@
 
 ## Compiling the project
 
+When compiling on the hydra cluster please make sure that the correct MPI module is loaded as some do not support C++.
+We tested all our code with openmpi 3.1.3
+
+    module load mpi/openmpi-3.1.3-slurm
+
+
 To install and build the project:
 
     git clone https://github.com/hitimr/HPC
@@ -28,13 +34,6 @@ Manually launch the binary:
 Clean environment
 
     make clean
-
-
-When compiling on the hydra cluster please make sure that the correct MPI module is loaded as some do not support C++.
-We tested all our code with openmpi 3.1.3
-
-    module load mpi/openmpi-3.1.3-slurm
-
 
 
 ## Original Readme by graph 500
