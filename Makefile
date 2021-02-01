@@ -17,7 +17,7 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 OPTIMIZE_C = -O3
 OPTIMIZE_CPP = -O3	# TODO: change to -03 before release
 CFLAGS 	+= $(INC_FLAGS) -MMD -MP -Drestrict=__restrict__ $(OPTIMIZE_C) -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml -ffast-math -march=native
-CPPFLAGS += $(INC_FLAGS) -MMD -MP -Drestrict=__restrict__ $(OPTIMIZE_CPP) -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml -fopenmp -ffast-math -march=native
+CPPFLAGS += $(INC_FLAGS) -MMD -MP -std=c++11 -Drestrict=__restrict__ $(OPTIMIZE_CPP) -DGRAPH_GENERATOR_MPI -DREUSE_CSR_FOR_VALIDATION -I../aml -fopenmp -ffast-math -march=native
 LDFLAGS += -lm -lpthread -lstdc++ -fopenmp -march=native
 
 # Compilers
