@@ -22,8 +22,7 @@ Check if the project works (launch with 2 processes and scale = 18):
 
 Manually launch the binary:
 
-    cd src/build
-    ./bfs [SCALE] [EDGEFACTOR]
+    cd ./build/bfs [SCALE] [EDGEFACTOR]
 
 
 Clean environment
